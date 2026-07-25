@@ -42,3 +42,18 @@ class RoleChecker:
                 detail="You do not have permission to access this resource"
             )
         return current_user
+
+# SOLID Service Injectors
+from app.services.interfaces import BaseAIService, BaseNetworkService, BasePDFService
+from app.services.ai_service import AIServiceFactory
+from app.services.network_service import NetworkService
+from app.services.pdf_service import PDFService
+
+def get_ai_service() -> BaseAIService:
+    return AIServiceFactory.get_ai_service()
+
+def get_network_service() -> BaseNetworkService:
+    return NetworkService()
+
+def get_pdf_service() -> BasePDFService:
+    return PDFService()

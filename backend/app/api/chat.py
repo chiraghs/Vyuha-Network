@@ -7,14 +7,18 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.db import models
 from app.schemas import ChatQuery, ChatReply
-from app.services.ai_service import AIService
-from app.services.pdf_service import PDFService
-from app.api.deps import get_current_user
+from app.services.interfaces import BaseAIService, BasePDFService
+from app.api.deps import get_current_user, get_ai_service, get_pdf_service
 
 router = APIRouter(prefix="/chat", tags=["Intelligent Conversational AI"])
 
 @router.post("", response_model=ChatReply)
-def post_chat_query(payload: ChatQuery, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def post_chat_query(
+    payload: ChatQuery, 
+    db: Session = Depends(get_db), 
+    ai_service: BaseAIService = Depends(get_ai_service),
+    current_user: models.User = Depends(get_current_user)
+):
     """Submit a text or voice query to the KSP crime records database assistant."""
     query_text = payload.query_text
     
@@ -23,7 +27,7 @@ def post_chat_query(payload: ChatQuery, db: Session = Depends(get_db), current_u
         try:
             audio_bytes = base64.b64decode(payload.voice_audio_base64)
             # Transcribe audio using STT service fallback
-            query_text = AIService.transcribe_kannada_audio(audio_bytes)
+            query_text = ai_service.transcribe_kannada_audio(audio_bytes)
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -37,7 +41,7 @@ def post_chat_query(payload: ChatQuery, db: Session = Depends(get_db), current_u
         )
 
     # 2. Run translation & language detection
-    translation_result = AIService.translate_kannada_query(query_text)
+    translation_result = ai_service.translate_kannada_query(query_text)
     detected_lang = translation_result["detected_language"]
     translated_text = translation_result["translated_query"]
 
@@ -55,7 +59,7 @@ def post_chat_query(payload: ChatQuery, db: Session = Depends(get_db), current_u
         })
 
     # 4. Invoke LLM pattern analyzer
-    ai_response = AIService.analyze_crime_pattern(translated_text, historical_data)
+    ai_response = ai_service.analyze_crime_pattern(translated_text, historical_data)
     reply_text = ai_response.get("summary", "No summary returned")
     
     # If patterns or recommendations are present, append them in a clean readable layout
@@ -70,7 +74,7 @@ def post_chat_query(payload: ChatQuery, db: Session = Depends(get_db), current_u
 
     # If the user queried in Kannada, translate the response summary back to Kannada for natural interaction
     if detected_lang == "kn":
-        back_translation = AIService.translate_kannada_query(formatted_reply)
+        back_translation = ai_service.translate_kannada_query(formatted_reply)
         formatted_reply = back_translation["translated_query"]
 
     # 5. Calculate audit verification hash
@@ -113,7 +117,11 @@ def get_chat_history(db: Session = Depends(get_db), current_user: models.User = 
     return result
 
 @router.get("/export-pdf")
-def get_pdf_report(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def get_pdf_report(
+    db: Session = Depends(get_db), 
+    pdf_service: BasePDFService = Depends(get_pdf_service),
+    current_user: models.User = Depends(get_current_user)
+):
     """Generate and return confidential investigation query audit logs PDF."""
     audits = db.query(models.ChatAudit).filter(models.ChatAudit.user_id == current_user.id).order_by(models.ChatAudit.timestamp.asc()).all()
     
@@ -133,7 +141,7 @@ def get_pdf_report(db: Session = Depends(get_db), current_user: models.User = De
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
 
-    pdf_data = PDFService.generate_chat_report(query_history)
+    pdf_data = pdf_service.generate_chat_report(query_history)
     
     # Return as PDF application attachment stream
     return Response(

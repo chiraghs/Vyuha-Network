@@ -5,10 +5,10 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from app.services.interfaces import BasePDFService
 
-class PDFService:
-    @staticmethod
-    def generate_chat_report(query_history: list) -> bytes:
+class PDFService(BasePDFService):
+    def generate_chat_report(self, query_history: list) -> bytes:
         """Compile chat history and audit trails into a secure KSP report PDF."""
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
@@ -22,14 +22,13 @@ class PDFService:
 
         styles = getSampleStyleSheet()
         
-        # Custom Premium Styles (KSP Navy and Gold branding)
         title_style = ParagraphStyle(
             name="KSPTitle",
             parent=styles["Title"],
             fontName="Helvetica-Bold",
             fontSize=22,
             leading=26,
-            textColor=colors.HexColor("#0A2540"), # Navy Blue
+            textColor=colors.HexColor("#0A2540"),
             spaceAfter=15
         )
         
@@ -39,9 +38,9 @@ class PDFService:
             fontName="Helvetica-Oblique",
             fontSize=10,
             leading=12,
-            textColor=colors.HexColor("#D4AF37"), # Gold/Bronze
+            textColor=colors.HexColor("#D4AF37"),
             spaceAfter=25,
-            alignment=1 # Center
+            alignment=1
         )
 
         heading_style = ParagraphStyle(
@@ -102,12 +101,10 @@ class PDFService:
 
         elements = []
 
-        # 1. Header Title & Badge
         elements.append(Paragraph("KARNATAKA STATE POLICE", title_style))
         elements.append(Paragraph("State Crime Records Bureau (SCRB) • Confidential Investigation Log", subtitle_style))
         elements.append(Spacer(1, 10))
 
-        # 2. Metadata Box
         report_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         meta_data = [
             [Paragraph("Report Type:", meta_label_style), Paragraph("Conversational Case Query Ledger", meta_val_style),
@@ -128,17 +125,14 @@ class PDFService:
         elements.append(meta_table)
         elements.append(Spacer(1, 20))
 
-        # 3. Investigation Ledger Heading
         elements.append(Paragraph("Intelligence Query History Ledger", heading_style))
         elements.append(Spacer(1, 10))
 
-        # 4. Chat Logs Iteration
         for idx, chat in enumerate(query_history, 1):
             q_text = chat.get("query_text", "")
             r_text = chat.get("reply_text", "")
             timestamp = chat.get("timestamp", report_time)
             
-            # Generate cryptographic verification hash for audit trail
             raw_hash_data = f"{q_text}{r_text}{timestamp}"
             ver_hash = hashlib.sha256(raw_hash_data.encode("utf-8")).hexdigest()
 
@@ -148,7 +142,6 @@ class PDFService:
             elements.append(Paragraph(f"Verification Ledger Hash: {ver_hash}", hash_style))
             elements.append(Spacer(1, 10))
 
-        # 5. Footer Signature Block
         elements.append(Spacer(1, 30))
         sig_data = [
             ["", ""],
@@ -161,11 +154,10 @@ class PDFService:
             ('FONTNAME', (0,2), (-1,2), 'Helvetica-Bold'),
             ('FONTSIZE', (0,2), (-1,2), 9),
             ('TEXTCOLOR', (0,2), (-1,2), colors.HexColor("#333333")),
-            ('TOPPADDING', (0,1), (-1,1), 40), # Space for signatures
+            ('TOPPADDING', (0,1), (-1,1), 40),
         ]))
         elements.append(sig_table)
 
-        # Build PDF
         doc.build(elements)
         buffer.seek(0)
         return buffer.getvalue()

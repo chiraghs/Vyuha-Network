@@ -1,22 +1,18 @@
 from sqlalchemy.orm import Session
 from app.db import models
+from app.services.interfaces import BaseNetworkService
 
-class NetworkService:
-    @staticmethod
-    def get_criminal_network(db: Session) -> dict:
+class NetworkService(BaseNetworkService):
+    def get_criminal_network(self, db: Session) -> dict:
         """Fetch criminals and relationships to structure a node-link network graph."""
-        # 1. Fetch all active criminals
         criminals = db.query(models.Criminal).all()
-        # 2. Fetch all relationship links
         links = db.query(models.CriminalNetwork).all()
 
         nodes = []
         edges = []
 
-        # Create mapping of criminal ID to criminal data
         criminal_map = {c.id: c for c in criminals}
 
-        # Track degree (number of connections) per criminal to highlight hubs
         degrees = {c.id: 0 for c in criminals}
         for link in links:
             if link.criminal_a in degrees:
@@ -24,7 +20,6 @@ class NetworkService:
             if link.criminal_b in degrees:
                 degrees[link.criminal_b] += 1
 
-        # Populate nodes list
         for c in criminals:
             nodes.append({
                 "id": c.id,
@@ -37,9 +32,7 @@ class NetworkService:
                 "is_hub": degrees.get(c.id, 0) >= 3
             })
 
-        # Populate edges list
         for link in links:
-            # Only add edge if both nodes exist in our local database set
             if link.criminal_a in criminal_map and link.criminal_b in criminal_map:
                 edges.append({
                     "id": link.id,
