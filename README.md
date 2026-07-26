@@ -16,6 +16,35 @@ Catalyst AI (Zia OCR, GLM chat) wired in.
 > - Developer console: `…/app/admin`
 > - Logins: `officer / officer123` · `admin / admin123` · `executive / executive123`
 
+## Technology Stack
+
+### Backend Services
+*   **API Framework**: FastAPI (Python 3.12/3.14 stateless REST API).
+*   **ASGI Server**: Uvicorn (production-grade asyncio worker process).
+*   **Database ORM**: SQLAlchemy 2.0 (relational mapping and transactions).
+*   **Database Engines**: PostgreSQL (durable production database) / SQLite (development fallback).
+*   **PDF Compiler**: ReportLab (generates secure investigation logs).
+*   **Document Processing**: PyPDF (extracts text from uploaded PDF case files).
+
+### Artificial Intelligence & Cognitive Services
+*   **Primary LLM Engine**: Zoho Catalyst QuickML GLM (chat analysis & translations).
+*   **Fallback LLM Engine**: Groq API / Llama-3-8b (secondary model tier).
+*   **Legacy LLM Engine**: Google Gemini 1.5 Flash (fallback model tier).
+*   **OCR Services**: Zoho Catalyst Zia Services (scans legal papers/images).
+
+### Frontend Dashboard Client
+*   **Client Core**: React 18.3 & TypeScript 5.2.
+*   **Bundler**: Vite 5.2 (fast production compilation).
+*   **Geospatial GIS Map**: Leaflet.js (dark-tiles spatial map).
+*   **Graphics Engine**: Custom HTML5 2D Canvas (runs Verlet physics accomplice networks).
+*   **Styling Theme**: Vanilla HSL CSS with Glassmorphism properties.
+*   **Icons**: Lucide Icons.
+
+### Deployment & Infrastructure
+*   **Hosting Platform**: Zoho Catalyst Cloud Serverless.
+*   **Containers**: AppSail (Docker container backend deployment).
+*   **Static Hosting**: Catalyst Web Client Hosting (serves React assets).
+
 ---
 
 ## Key features
@@ -299,3 +328,23 @@ the Catalyst console — secrets are never committed or baked into the image.
 
 - **Frontend:** `npm run typecheck` · `npm run lint` · `npm run build` (in `frontend/`)
 - **Backend:** `pytest` · `black --check app/` · `flake8 app/` · `mypy app/` (in `backend/`)
+
+---
+
+## Datathon Submission Resources
+
+### 📋 Technology Stack Textbox List (Plain Text Copy-Paste)
+```text
+Backend: Python 3.12/3.14, FastAPI, Uvicorn, SQLAlchemy 2.0 ORM, PostgreSQL (production) / SQLite (development). AI/LLM: Zoho Catalyst QuickML GLM, Groq API (Llama-3-8b fallback), Google Gemini 1.5 Flash, Zoho Catalyst Zia Services (OCR Function). Processing: PyPDF (text extractor), ReportLab (PDF compiler). Frontend: React 18.3, TypeScript 5.2, Vite 5.2, Leaflet.js (GIS Map), HTML5 Canvas 2D (Verlet physics graph), Lucide Icons, HSL CSS with Glassmorphism. Deployment: Zoho Catalyst AppSail (Docker container hosting), Web Client Hosting.
+```
+
+### 🖼️ Visual Feature Reference Table
+| System Module | Operational Capability | Primary Tech Utilized | File/Code Reference |
+| :--- | :--- | :--- | :--- |
+| **Command Overview** | Real-time KPIs, incident trends, & socio-economic correlations | SQL aggregations, custom CSS charts | [analytics.py](backend/app/api/analytics.py) |
+| **Geospatial Map** | Clustered hotspot coordinates & district-level filters | Leaflet.js GIS, custom dark-tile masking | [map.js](frontend/src/features/dashboard/map.js) |
+| **Accomplice Graph** | Force-directed accomplice lines & offender hub highlights | Custom HTML5 Canvas Verlet physics | [ForceGraph.tsx](frontend/src/features/network/ForceGraph.tsx) |
+| **Bilingual Assistant** | Speech-to-text queries in EN/KN with signed PDF ledger exports | Zia STT, translation bridge, ReportLab | [ai_service.py](backend/app/services/ai_service.py) |
+| **BYOD Intake** | Drag-drop files processing & document-specific context Q&A | Decoupled server, `pypdf`, SQLite | [documents.py](backend/app/api/documents.py) |
+| **Admin Console** | Key configuration changes at runtime & logs streaming | FastAPI SSE, AppSail config manager | [admin.py](backend/app/api/admin.py) |
+
