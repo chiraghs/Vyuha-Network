@@ -313,31 +313,97 @@ class LLMAIService(BaseAIService):
         return MockAIService().transcribe_kannada_audio(audio_bytes)
 
 
+class _CatalystToken:
+    """
+    Process-wide cache for the Catalyst OAuth access token.
+
+    Catalyst access tokens expire in ~1 hour, so a static token in env is only
+    good for one hour. When the long-lived refresh-token credentials are set,
+    this mints an access token from them, caches it, and auto-renews ~2 min
+    before expiry — the durable way to run Catalyst as a deployed primary AI.
+    A static CATALYST_AI_TOKEN (quick testing / manual override) always wins.
+    """
+
+    _access_token: str = ""
+    _expires_at: float = 0.0
+
+    @classmethod
+    def get(cls) -> str:
+        static = os.getenv("CATALYST_AI_TOKEN")
+        if static:
+            return static
+        if cls._access_token and time.time() < cls._expires_at:
+            return cls._access_token
+        cls._refresh()
+        return cls._access_token
+
+    @classmethod
+    def invalidate(cls) -> None:
+        cls._access_token = ""
+        cls._expires_at = 0.0
+
+    @classmethod
+    def _refresh(cls) -> None:
+        import requests
+
+        accounts = os.getenv("CATALYST_ACCOUNTS_URL", "https://accounts.zoho.in").rstrip("/")
+        resp = requests.post(
+            f"{accounts}/oauth/v2/token",
+            params={
+                "grant_type": "refresh_token",
+                "client_id": os.getenv("CATALYST_CLIENT_ID", ""),
+                "client_secret": os.getenv("CATALYST_CLIENT_SECRET", ""),
+                "refresh_token": os.getenv("CATALYST_REFRESH_TOKEN", ""),
+            },
+            timeout=20,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        token = data.get("access_token")
+        if not token:
+            # Zoho returns {"error": "..."} with HTTP 200 on bad creds.
+            raise RuntimeError(f"Catalyst token refresh failed: {data}")
+        cls._access_token = token
+        cls._expires_at = time.time() + max(60, int(data.get("expires_in", 3600)) - 120)
+
+
 class CatalystGLMService(BaseAIService):
     """
     Catalyst QuickML GLM chat — the PRIMARY AI. OpenAI-compatible; on any
     failure each method delegates to `fallback` (Groq, then heuristic mock), so
     the chain is Catalyst → Groq → mock.
 
-    Config (env):
-      CATALYST_AI_TOKEN  Bearer token (required to use Catalyst)
-      CATALYST_AI_URL    default the project's GLM chat endpoint
-      CATALYST_AI_ORG    default 60080167463
-      CATALYST_AI_MODEL  default crm-di-glm47b_30b_it
+    Config (env) — either a static token OR the refresh-token credentials:
+      Static (expires in ~1h, for quick tests):
+        CATALYST_AI_TOKEN     Bearer access token
+      Durable (auto-renewed, for deployment):
+        CATALYST_REFRESH_TOKEN  long-lived refresh token (never expires)
+        CATALYST_CLIENT_ID      Self Client id from api-console.zoho.in
+        CATALYST_CLIENT_SECRET  Self Client secret
+        CATALYST_ACCOUNTS_URL   default https://accounts.zoho.in
+      Endpoint (safe to bake):
+        CATALYST_AI_URL    default the project's GLM chat endpoint
+        CATALYST_AI_ORG    default 60080167463
+        CATALYST_AI_MODEL  default crm-di-glm47b_30b_it
     """
 
     DEFAULT_URL = "https://api.catalyst.zoho.in/quickml/v1/project/46808000000019001/glm/chat"
 
     def __init__(self, fallback: BaseAIService):
         self.url = os.getenv("CATALYST_AI_URL") or self.DEFAULT_URL
-        self.token = os.getenv("CATALYST_AI_TOKEN", "")
         self.org = os.getenv("CATALYST_AI_ORG", "60080167463")
         self.model = os.getenv("CATALYST_AI_MODEL", "crm-di-glm47b_30b_it")
         self.fallback = fallback
 
     @staticmethod
     def is_configured() -> bool:
-        return bool(os.getenv("CATALYST_AI_TOKEN"))
+        if os.getenv("CATALYST_AI_TOKEN"):
+            return True
+        return bool(
+            os.getenv("CATALYST_REFRESH_TOKEN")
+            and os.getenv("CATALYST_CLIENT_ID")
+            and os.getenv("CATALYST_CLIENT_SECRET")
+        )
 
     def _chat(self, system: str, user: str, max_tokens: int = 1024) -> str:
         import requests
@@ -352,18 +418,26 @@ class CatalystGLMService(BaseAIService):
             "temperature": 0.4,
             "stream": False,
         }
-        resp = requests.post(
-            self.url,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.token}",
-                "CATALYST-ORG": self.org,
-            },
-            json=body,
-            timeout=45,
-        )
-        resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"].strip()
+        # Retry once on 401: the cached access token may have just expired, so
+        # invalidate and re-mint from the refresh token (skip when a static
+        # token is pinned — re-minting can't help there).
+        using_refresh = not os.getenv("CATALYST_AI_TOKEN")
+        for attempt in range(2):
+            resp = requests.post(
+                self.url,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {_CatalystToken.get()}",
+                    "CATALYST-ORG": self.org,
+                },
+                json=body,
+                timeout=45,
+            )
+            if resp.status_code == 401 and attempt == 0 and using_refresh:
+                _CatalystToken.invalidate()
+                continue
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"].strip()
 
     def analyze_crime_pattern(self, query_text: str, historical_records: list, language: str = "en") -> dict:
         try:

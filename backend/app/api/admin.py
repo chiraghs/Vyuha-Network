@@ -28,6 +28,10 @@ require_admin = RoleChecker(["admin"])
 # Config keys the app actually reads — surfaced first in the console.
 KNOWN_KEYS = [
     "CATALYST_AI_TOKEN",
+    "CATALYST_REFRESH_TOKEN",
+    "CATALYST_CLIENT_ID",
+    "CATALYST_CLIENT_SECRET",
+    "CATALYST_ACCOUNTS_URL",
     "CATALYST_AI_MODEL",
     "CATALYST_AI_ORG",
     "CATALYST_AI_URL",
