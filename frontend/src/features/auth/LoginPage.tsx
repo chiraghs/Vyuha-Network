@@ -1,8 +1,9 @@
-import { AlertTriangle, Lock, Shield, User as UserIcon } from 'lucide-react';
+import { AlertTriangle, Lock, User as UserIcon } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Spinner } from '../../components/ui/states';
+import kspSeal from '../../assets/karnataka-seal.svg';
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -29,8 +30,8 @@ export function LoginPage() {
     <div className="login-screen">
       <form className="card login-card fade-in" onSubmit={handleSubmit}>
         <div>
-          <div className="login-card__mark">
-            <Shield size={22} />
+          <div className="login-card__mark login-card__mark--seal">
+            <img src={kspSeal} alt="Karnataka State Police" />
           </div>
           <h1 className="login-card__title" style={{ marginTop: 14 }}>
             Vyuha Network

@@ -6,7 +6,6 @@ import {
   MessageSquareText,
   Moon,
   Share2,
-  Shield,
   Sun,
   Users,
 } from 'lucide-react';
@@ -14,6 +13,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { titleCase } from '../../lib/format';
+import kspSeal from '../../assets/karnataka-seal.svg';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
@@ -47,8 +47,8 @@ export function AppShell() {
     <div className="shell">
       <aside className="sidebar">
         <div className="sidebar__brand">
-          <span className="sidebar__brand-mark">
-            <Shield size={18} />
+          <span className="sidebar__brand-mark sidebar__brand-mark--seal">
+            <img src={kspSeal} alt="Karnataka State Police" />
           </span>
           <div className="sidebar__brand-text">
             <div className="sidebar__brand-name">Vyuha Network</div>
