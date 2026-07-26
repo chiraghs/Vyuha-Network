@@ -22,9 +22,9 @@ _ZIA_TIMEOUT_S = float(os.getenv("ZIA_TIMEOUT_SECONDS", "8"))
 _executor = ThreadPoolExecutor(max_workers=4)
 
 
-def _guarded(fn: Callable[[], Any]) -> Optional[Any]:
+def _guarded(fn: Callable[[], Any], timeout: Optional[float] = None) -> Optional[Any]:
     try:
-        return _executor.submit(fn).result(timeout=_ZIA_TIMEOUT_S)
+        return _executor.submit(fn).result(timeout=timeout or _ZIA_TIMEOUT_S)
     except (FutureTimeout, Exception) as exc:  # noqa: BLE001 — degrade gracefully
         print(f"[catalyst_ai] call failed/timed out: {exc}")
         return None
@@ -93,21 +93,46 @@ def _extract_keywords(zia, text: str) -> Optional[List[str]]:
 
 
 # --------------------------------------------------------------------------- #
-# OCR (document intake)
+# OCR (document intake) — via the Zia Services CodeLib function
 # --------------------------------------------------------------------------- #
-def extract_text(image_bytes: bytes, language: str = "eng") -> Optional[Dict[str, Any]]:
+# The bare SDK `zcatalyst_sdk.initialize()` has no auth context on AppSail, so
+# Zia is reached through the installed CodeLib Function instead (it initialises
+# the SDK from its own request context). The AppSail backend calls it
+# server-to-server with the shared secret so the key never reaches the browser.
+def ocr_available() -> bool:
+    return bool(os.getenv("ZIA_OCR_URL") and os.getenv("ZIA_CODELIB_SECRET"))
+
+
+def extract_text(
+    image_bytes: bytes, language: str = "eng", content_type: str = "image/png"
+) -> Optional[Dict[str, Any]]:
     """Run Zia OCR over an uploaded document image. Returns {text, confidence}."""
-    if not is_enabled():
+    url = os.getenv("ZIA_OCR_URL")
+    secret = os.getenv("ZIA_CODELIB_SECRET")
+    if not url or not secret:
         return None
 
-    def _run() -> Optional[Dict[str, Any]]:
-        zia = _catalyst_app().zia()
-        res = zia.extract_optical_characters(
-            io.BytesIO(image_bytes), {"language": language, "modelType": "OCR"}
-        )
-        return {"text": res.get("text", ""), "confidence": res.get("confidence")}
+    # The CodeLib upload handler filters by image mimetype, so send a real
+    # image content-type (not octet-stream) or it rejects the file with 400.
+    mime = content_type if (content_type or "").startswith("image/") else "image/png"
+    ext = mime.split("/")[-1]
 
-    return _guarded(_run)
+    def _run() -> Optional[Dict[str, Any]]:
+        import requests
+
+        resp = requests.post(
+            url,
+            headers={"catalyst-codelib-secret-key": secret},
+            files={"image": (f"document.{ext}", image_bytes, mime)},
+            timeout=25,
+        )
+        resp.raise_for_status()
+        payload = resp.json()
+        data = payload.get("data") or {}
+        text = data.get("text", "")
+        return {"text": text, "confidence": data.get("confidence")} if text else None
+
+    return _guarded(_run, timeout=28)
 
 
 # --------------------------------------------------------------------------- #

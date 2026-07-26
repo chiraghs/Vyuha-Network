@@ -1,0 +1,13 @@
+{
+	"deployment": {
+		"name": "catalyst-zia-services",
+		"stack": "node16",
+		"type": "advancedio",
+		"env_variables": {
+			"CODELIB_SECRET_KEY": "SET_VIA_CONSOLE"
+		}
+	},
+	"execution": {
+		"main": "index.js"
+	}
+}

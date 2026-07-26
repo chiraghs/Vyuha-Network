@@ -7,6 +7,8 @@ passlib[bcrypt]>=1.7.4
 python-multipart>=0.0.9
 google-generativeai>=0.4.0
 reportlab>=4.1.0
+# Server-to-server calls to the Zia Services CodeLib function (OCR).
+requests>=2.31.0
 # Catalyst SDK — Zia AI services, Stratus object storage, Data Store.
 # Optional at runtime: the app degrades gracefully if it is absent/disabled.
 zcatalyst-sdk>=1.0.0

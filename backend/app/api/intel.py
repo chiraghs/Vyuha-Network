@@ -26,8 +26,11 @@ class TextIn(BaseModel):
 
 @router.get("/status")
 def ai_status(current_user: models.User = Depends(get_current_user)):
-    """Report whether Catalyst Zia AI is wired up for this deployment."""
-    return {"catalyst_ai_enabled": catalyst_ai.is_enabled()}
+    """Report which Catalyst AI capabilities are wired up for this deployment."""
+    return {
+        "catalyst_ai_enabled": catalyst_ai.is_enabled(),
+        "ocr": catalyst_ai.ocr_available(),  # Zia OCR via the CodeLib function
+    }
 
 
 @router.post("/nlp")
@@ -47,7 +50,9 @@ async def ocr_document(
 ):
     """Extract text from an uploaded FIR / case document image (Zia OCR)."""
     data = await file.read()
-    result = catalyst_ai.extract_text(data, language=language)
+    result = catalyst_ai.extract_text(
+        data, language=language, content_type=file.content_type or "image/png"
+    )
     if result is None:
         return {
             "available": False,

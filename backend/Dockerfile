@@ -27,6 +27,9 @@ ENV DISABLE_APP_CORS=true \
     MOCK_AI_PIPELINE=true \
     CATALYST_AI_ENABLED=false \
     AUTO_SEED=true
+# ZIA_OCR_URL and ZIA_CODELIB_SECRET (for the Zia OCR CodeLib) are NOT baked in
+# — set them as environment variables on the AppSail app in the Catalyst
+# console so the secret never enters the image or git.
 
 # Catalyst injects the port via X_ZOHO_CATALYST_LISTEN_PORT (default 9000).
 EXPOSE 9000
