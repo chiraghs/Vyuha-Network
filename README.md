@@ -115,6 +115,12 @@ flowchart TD
         CDN_STATIC["Zoho CDN / Static Hosting"]
         SPA["React + Vite Client (EN / ಕನ್ನಡ)"]
         CDN_ASSETS["CDN (Large File Assets / PDFs)"]
+        
+        %% Client Application Sub-Modules
+        DASH["Crime Analytics Dashboard"]
+        MAP_UI["Hotspot Maps & District Drilldowns"]
+        LINK_UI["Crime Network Link Analysis"]
+        CHAT_UI["Investigator AI Assistant Chat"]
     end
 
     subgraph IngressLayer["2. Security & Load Balancing"]
@@ -138,9 +144,20 @@ flowchart TD
         BQ[("Analytics DW")]
     end
 
-    %% Routing Flow
+    %% Client Routing Flow
     CDN_STATIC --> SPA
-    SPA -->|HTTPS Queries| LB
+    SPA --> DASH
+    SPA --> MAP_UI
+    SPA --> LINK_UI
+    SPA --> CHAT_UI
+    
+    %% Ingress to Load Balancer
+    DASH -->|HTTPS Queries| LB
+    MAP_UI -->|HTTPS Queries| LB
+    LINK_UI -->|HTTPS Queries| LB
+    CHAT_UI -->|HTTPS Queries| LB
+    
+    %% Security Triage
     LB --> AUTH
     AUTH -->|Validated JWT Roles| API_POOL
     
@@ -160,7 +177,7 @@ flowchart TD
     API_POOL --> PG
     PG <-->|Federated External Query| BQ
 
-    class SPA,CDN_STATIC,CDN_ASSETS client;
+    class SPA,CDN_STATIC,CDN_ASSETS,DASH,MAP_UI,LINK_UI,CHAT_UI client;
     class LB,AUTH infra;
     class API_POOL,REDIS,ZIA logic;
     class PG,BQ,GLM,GROQ data;
