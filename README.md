@@ -42,6 +42,33 @@ Catalyst AI (Zia OCR, GLM chat) wired in.
   runtime environment editor (set keys without redeploying), and a log tail.
 - **Light / dark themes** throughout.
 
+## Operational Opportunities & Impact
+
+### 📈 Command Overview Page (Strategic Oversight)
+*   **Operational Opportunity**: **Instant Executive Oversight & Performance Tracking**
+*   **The Value**: Instead of spending days consolidating physical ledgers and spreadsheets across 1100+ stations, police leaders get an immediate visual health report of state-level security.
+*   **Real-World Impact**: Enables command staff to identify crime spikes, track station case resolution throughput, and adjust regional deployments immediately.
+
+### 🗺️ Geospatial Hotspot Map (Tactical Navigation)
+*   **Operational Opportunity**: **Proactive Patrol Routing & Resource Placement**
+*   **The Value**: Replaces legacy text address lists with a live, zoomable crime-density map showing crime hotbeds, search filters, and case details.
+*   **Real-World Impact**: Allows precinct planners to direct patrol cars to active risk zones, preventing offenses before they occur and decreasing local emergency response times.
+
+### 🕸️ Criminal Link Analysis (Accomplice Graph)
+*   **Operational Opportunity**: **Dismantling Syndicates & Intercepting Ring Leaders**
+*   **The Value**: Exposes hidden networks of accomplices by mapping co-arrest records visually. Flags core "hubs" (repeat offenders linking separate gangs) and maps recidivism risks.
+*   **Real-World Impact**: Empowers investigators to dismantle entire crime networks rather than making isolated arrests.
+
+### 📊 Correlation & Demographic Analytics (Community Policing)
+*   **Operational Opportunity**: **Targeted Crime Prevention & Local Interventions**
+*   **The Value**: Maps offense trends against demographics (e.g. complainant occupation or local district metrics).
+*   **Real-World Impact**: Directs municipal and social support programs directly to high-risk zones, addressing root causes of crime like youth unemployment.
+
+### 🗣️ Bilingual AI Assistant (Voice Command)
+*   **Operational Opportunity**: **Democratizing Investigation Access for Field Staff**
+*   **The Value**: Direct voice query support in spoken Kannada or English (e.g. *"Show me recent homicides near Bengaluru"*).
+*   **Real-World Impact**: Saves hours of database lookups, giving every beat officer instant, voice-activated access to case records in their native language.
+
 ---
 
 ## Architecture
@@ -76,6 +103,56 @@ flowchart TD
     GROQ -->|on failure| MOCK
     API --> PG
     API --> SQLITE
+```
+
+---
+
+## Process Flow & Use-Case Diagram
+
+```mermaid
+flowchart TD
+    subgraph Users["User Personas"]
+        INV["Investigator (Field Officer)"]
+        EXEC["SCRB Executive (Command Staff)"]
+    end
+
+    subgraph Ingest["1. Data Ingestion & Intake"]
+        VOICE["Kannada / English Voice Input"]
+        TEXT["Text Query Input"]
+        DOCS["BYOD Ingest (PDF / TXT upload)"]
+    end
+
+    subgraph Proc["2. Processing & Analysis Layer"]
+        STT["Zia / Whisper STT Transcription"]
+        TRANS["Bilingual Translation Bridge"]
+        EXTR["pypdf Text Extraction"]
+        DB_QUERY["ACID Database Query"]
+        AI_QUERY["AI Chain (GLM / Groq / Gemini)"]
+    end
+
+    subgraph Out["3. Visual & Audit Outputs"]
+        MAP["Geospatial Hotspots & GIS Map"]
+        NET["Criminal Network Accomplice Graph"]
+        CHAT["Explainable AI Answers & Advisories"]
+        PDF["ReportLab signed PDF Log Export"]
+        LEDGER["SHA-256 Cryptographic Log Verification"]
+    end
+
+    INV --> VOICE
+    INV --> TEXT
+    INV --> DOCS
+    EXEC --> TEXT
+
+    VOICE --> STT --> TRANS --> AI_QUERY
+    TEXT --> TRANS --> AI_QUERY
+    DOCS --> EXTR --> AI_QUERY
+
+    AI_QUERY --> DB_QUERY
+    DB_QUERY --> MAP
+    DB_QUERY --> NET
+    AI_QUERY --> CHAT
+    CHAT --> LEDGER
+    CHAT --> PDF
 ```
 
 ### AI chain (`backend/app/services/ai_service.py`)
