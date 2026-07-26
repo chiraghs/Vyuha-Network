@@ -1,0 +1,8 @@
+# Built static assets are copied here from frontend/dist by scripts/build-client.sh.
+# Keep client-package.json tracked; ignore the generated bundle.
+assets/
+index.html
+*.svg
+*.png
+*.ico
+*.txt

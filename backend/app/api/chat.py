@@ -8,6 +8,7 @@ from app.db.database import get_db
 from app.db import models
 from app.schemas import ChatQuery, ChatReply
 from app.services.interfaces import BaseAIService, BasePDFService
+from app.services import catalyst_ai
 from app.api.deps import get_current_user, get_ai_service, get_pdf_service
 
 router = APIRouter(prefix="/chat", tags=["Intelligent Conversational AI"])
@@ -93,13 +94,20 @@ def post_chat_query(
     db.add(audit_entry)
     db.commit()
 
+    # 7. Optional Catalyst Zia enrichment (sentiment + keywords of the query).
+    #    Runs only when Catalyst AI is enabled; None otherwise.
+    nlp = catalyst_ai.analyze_text(translated_text)
+
     return {
         "original_query": query_text,
         "translated_query": translated_text,
         "reply_text": formatted_reply,
         "language": detected_lang,
         "timestamp": timestamp,
-        "verification_hash": ver_hash
+        "verification_hash": ver_hash,
+        "sentiment": (nlp or {}).get("sentiment"),
+        "sentiment_score": (nlp or {}).get("score"),
+        "keywords": (nlp or {}).get("keywords"),
     }
 
 @router.get("/history")

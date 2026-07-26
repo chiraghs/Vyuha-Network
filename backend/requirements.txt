@@ -7,6 +7,10 @@ passlib[bcrypt]>=1.7.4
 python-multipart>=0.0.9
 google-generativeai>=0.4.0
 reportlab>=4.1.0
+# Catalyst SDK — Zia AI services, Stratus object storage, Data Store.
+# Optional at runtime: the app degrades gracefully if it is absent/disabled.
+zcatalyst-sdk>=1.0.0
+# Dev / test only
 pytest>=8.0.0
 httpx>=0.27.0
 black>=24.2.0
