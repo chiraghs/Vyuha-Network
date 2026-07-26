@@ -48,8 +48,9 @@ def test_get_crimes_authorized():
     response = client.get("/api/analytics/crimes", headers=headers)
     assert response.status_code == 200
     data = response.json()
-    assert len(data) > 0
-    assert "FIR_number" in data[0]
+    assert "items" in data
+    assert len(data["items"]) > 0
+    assert "FIR_number" in data["items"][0]
 
 def test_get_network_graph():
     """Verify criminal accomplice network endpoints."""
