@@ -11,6 +11,7 @@ import { StatTile } from '../../components/ui/StatTile';
 import { SearchField } from '../../components/ui/fields';
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/states';
 import { useApi } from '../../hooks/useApi';
+import { useI18n } from '../../context/LanguageContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import { RISK_LABEL, riskColorVar, riskLevel } from '../../lib/risk';
 import { formatNumber, titleCase } from '../../lib/format';
@@ -28,6 +29,7 @@ const RISK_TONE: Record<RiskLevel, BadgeTone> = {
 };
 
 export function OffendersPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -58,33 +60,33 @@ export function OffendersPage() {
       <div className="page__grid">
         <div className="kpi-grid">
           <StatTile
-            label="Tracked offenders"
+            label={t("off.tracked")}
             icon={<Users size={14} />}
             value={stats ? formatNumber(stats.total) : '—'}
-            hint="Identity-resolved from accused records"
+            hint={t("off.tracked.hint")}
             provenance={{ label: 'Live · FIR DB', tone: 'live' }}
             loading={statsState.loading}
           />
           <StatTile
-            label="Repeat offenders"
+            label={t("off.repeat")}
             icon={<UserCheck size={14} />}
             value={stats ? formatNumber(stats.repeat) : '—'}
-            hint="Linked to 2+ registered cases"
+            hint={t("off.repeat.hint")}
             accentColor="var(--status-serious)"
             provenance={{ label: 'Computed', tone: 'computed' }}
             loading={statsState.loading}
           />
           <StatTile
-            label="Prolific offenders"
+            label={t("off.prolific")}
             icon={<TrendingUp size={14} />}
             value={stats ? formatNumber(stats.prolific) : '—'}
-            hint="8+ cases on record"
+            hint={t("off.prolific.hint")}
             accentColor="var(--status-critical)"
             provenance={{ label: 'Computed', tone: 'computed' }}
             loading={statsState.loading}
           />
           <StatTile
-            label="Most active"
+            label={t("off.mostActive")}
             value={stats ? `${stats.max_cases} cases` : '—'}
             hint={stats ? `Avg ${stats.avg_cases} cases / offender` : undefined}
             provenance={{ label: 'Computed', tone: 'computed' }}
@@ -97,8 +99,8 @@ export function OffendersPage() {
         )}
 
         <Card
-          title="Offender registry"
-          subtitle="Recidivism scoring, identity-resolved across the FIR database"
+          title={t("off.registry.title")}
+          subtitle={t("off.registry.subtitle")}
           flush
           actions={
             <>
@@ -107,11 +109,9 @@ export function OffendersPage() {
                 onClick={() => setPhotoSearchOpen((open) => !open)}
                 aria-pressed={photoSearchOpen}
               >
-                <ScanFace size={14} />
-                Search by photo
-              </button>
+                <ScanFace size={14} />{t("off.searchPhoto")}</button>
               <div style={{ minWidth: 240 }}>
-                <SearchField value={search} onChange={setSearch} placeholder="Search name or alias…" />
+                <SearchField value={search} onChange={setSearch} placeholder={t("off.searchPlaceholder")} />
               </div>
             </>
           }
@@ -135,11 +135,11 @@ export function OffendersPage() {
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>Offender</th>
-                      <th>Status</th>
-                      <th className="num">Cases</th>
-                      <th>Recidivism risk</th>
-                      <th>Band</th>
+                      <th>{t("off.col.offender")}</th>
+                      <th>{t("off.col.status")}</th>
+                      <th className="num">{t("off.col.cases")}</th>
+                      <th>{t("off.col.risk")}</th>
+                      <th>{t("off.col.band")}</th>
                     </tr>
                   </thead>
                   <tbody>

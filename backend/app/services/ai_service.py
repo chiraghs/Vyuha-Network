@@ -1,9 +1,29 @@
 import os
 import json
+import re
 import time
 import google.generativeai as genai
 from app.services.interfaces import BaseAIService
 from app.services.observability import metrics
+
+
+def _extract_json(text: str) -> dict:
+    """Parse a JSON object from an LLM reply, tolerating code fences and
+    <think> reasoning blocks emitted by thinking models."""
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    if "```" in text:
+        m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, flags=re.DOTALL)
+        if m:
+            text = m.group(1)
+    if not text.lstrip().startswith("{"):
+        m = re.search(r"\{.*\}", text, flags=re.DOTALL)
+        if m:
+            text = m.group(0)
+    return json.loads(text)
+
+
+def _strip_think(text: str) -> str:
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
 class GeminiAIService(BaseAIService):
     def __init__(self, api_key: str):
@@ -264,20 +284,132 @@ class LLMAIService(BaseAIService):
         return MockAIService().transcribe_kannada_audio(audio_bytes)
 
 
+class CatalystGLMService(BaseAIService):
+    """
+    Catalyst QuickML GLM chat — the PRIMARY AI. OpenAI-compatible; on any
+    failure each method delegates to `fallback` (Groq, then heuristic mock), so
+    the chain is Catalyst → Groq → mock.
+
+    Config (env):
+      CATALYST_AI_TOKEN  Bearer token (required to use Catalyst)
+      CATALYST_AI_URL    default the project's GLM chat endpoint
+      CATALYST_AI_ORG    default 60080167463
+      CATALYST_AI_MODEL  default crm-di-glm47b_30b_it
+    """
+
+    DEFAULT_URL = "https://api.catalyst.zoho.in/quickml/v1/project/46808000000019001/glm/chat"
+
+    def __init__(self, fallback: BaseAIService):
+        self.url = os.getenv("CATALYST_AI_URL") or self.DEFAULT_URL
+        self.token = os.getenv("CATALYST_AI_TOKEN", "")
+        self.org = os.getenv("CATALYST_AI_ORG", "60080167463")
+        self.model = os.getenv("CATALYST_AI_MODEL", "crm-di-glm47b_30b_it")
+        self.fallback = fallback
+
+    @staticmethod
+    def is_configured() -> bool:
+        return bool(os.getenv("CATALYST_AI_TOKEN"))
+
+    def _chat(self, system: str, user: str, max_tokens: int = 1024) -> str:
+        import requests
+
+        body = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "max_tokens": max_tokens,
+            "temperature": 0.4,
+            "stream": False,
+        }
+        resp = requests.post(
+            self.url,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.token}",
+                "CATALYST-ORG": self.org,
+            },
+            json=body,
+            timeout=45,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"].strip()
+
+    def analyze_crime_pattern(self, query_text: str, historical_records: list) -> dict:
+        try:
+            records = json.dumps(historical_records[:30], default=str)
+            system = (
+                "You are a lead crime analyst for the Karnataka State Police. "
+                "Reply ONLY with a single JSON object, no prose."
+            )
+            user = (
+                "Analyse the investigator query against the recent FIR records and return JSON with keys: "
+                "summary (string), detected_patterns (array of strings), confidence_score (number 0-1), "
+                "recommended_actions (array of strings), audit_explanation (string). "
+                f"Investigator query: {query_text}\nFIR records: {records}"
+            )
+            start = time.perf_counter()
+            result = _extract_json(self._chat(system, user, 1100))
+            metrics.record_ai(True, "catalyst", self.model, (time.perf_counter() - start) * 1000)
+            return result
+        except Exception as exc:  # noqa: BLE001
+            print(f"[CatalystGLM] analyze_crime_pattern fell back: {exc}")
+            return self.fallback.analyze_crime_pattern(query_text, historical_records)
+
+    def calculate_risk_score_explanation(self, criminal_name: str, priors_count: int, crime_types: list) -> str:
+        try:
+            system = (
+                "You are a police intelligence analyst. Write a clinical, professional 3-4 sentence "
+                "recidivism risk assessment suitable for a dashboard. No preamble."
+            )
+            user = (
+                f"Suspect: {criminal_name}. Prior cases: {priors_count}. "
+                f"Offence types: {', '.join(crime_types) or 'unknown'}."
+            )
+            start = time.perf_counter()
+            result = _strip_think(self._chat(system, user, 320))
+            metrics.record_ai(True, "catalyst", self.model, (time.perf_counter() - start) * 1000)
+            return result
+        except Exception as exc:  # noqa: BLE001
+            print(f"[CatalystGLM] risk_explanation fell back: {exc}")
+            return self.fallback.calculate_risk_score_explanation(criminal_name, priors_count, crime_types)
+
+    def translate_kannada_query(self, query_text: str) -> dict:
+        try:
+            system = "You are a translation assistant for the Karnataka State Police. Reply ONLY with JSON."
+            user = (
+                "Detect the language of the input. If Kannada, translate to English; if English, keep it. "
+                "Return JSON with keys: original_query (string), translated_query (string), "
+                "detected_language ('kn' or 'en'), confidence (number 0-1). "
+                f"Input: {query_text.strip()}"
+            )
+            start = time.perf_counter()
+            result = _extract_json(self._chat(system, user, 400))
+            metrics.record_ai(True, "catalyst", self.model, (time.perf_counter() - start) * 1000)
+            return result
+        except Exception as exc:  # noqa: BLE001
+            print(f"[CatalystGLM] translate fell back: {exc}")
+            return self.fallback.translate_kannada_query(query_text)
+
+    def transcribe_kannada_audio(self, audio_bytes: bytes) -> str:
+        return self.fallback.transcribe_kannada_audio(audio_bytes)
+
+
 class AIServiceFactory:
     @staticmethod
     def get_ai_service() -> BaseAIService:
         """
-        Concrete AIService selection (Open/Closed). Preference order:
-        1. Groq (free, open models) when GROQ_API_KEY is set — the real AI path.
-        2. Gemini when GEMINI_API_KEY is set and mock is not forced.
-        3. MockAIService otherwise (zero-config local/demo).
+        AI selection (Open/Closed). Chain: Catalyst GLM (primary, if
+        CATALYST_AI_TOKEN) → Groq (FALLBACK_AI_*) → Gemini → heuristic mock.
         """
         if LLMAIService.is_configured():
-            return LLMAIService()
+            base: BaseAIService = LLMAIService()
+        else:
+            api_key = os.getenv("GEMINI_API_KEY")
+            mock_pipeline = os.getenv("MOCK_AI_PIPELINE", "true").lower() == "true"
+            base = MockAIService() if (not api_key or mock_pipeline) else GeminiAIService(api_key=api_key)
 
-        api_key = os.getenv("GEMINI_API_KEY")
-        mock_pipeline = os.getenv("MOCK_AI_PIPELINE", "true").lower() == "true"
-        if not api_key or mock_pipeline:
-            return MockAIService()
-        return GeminiAIService(api_key=api_key)
+        if CatalystGLMService.is_configured():
+            return CatalystGLMService(fallback=base)
+        return base

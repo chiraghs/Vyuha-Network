@@ -2,11 +2,14 @@ import { AlertTriangle, Lock, User as UserIcon } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useI18n } from '../../context/LanguageContext';
+import { LangToggle } from '../../components/ui/LangToggle';
 import { Spinner } from '../../components/ui/states';
 import kspSeal from '../../assets/karnataka-seal.svg';
 
 export function LoginPage() {
   const { login } = useAuth();
+  const { t } = useI18n();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -29,16 +32,17 @@ export function LoginPage() {
   return (
     <div className="login-screen">
       <form className="card login-card fade-in" onSubmit={handleSubmit}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <LangToggle />
+        </div>
         <div>
           <div className="login-card__mark login-card__mark--seal">
             <img src={kspSeal} alt="Karnataka State Police" />
           </div>
           <h1 className="login-card__title" style={{ marginTop: 14 }}>
-            Vyuha Network
+            {t('login.title')}
           </h1>
-          <p className="login-card__subtitle">
-            State Crime Records Bureau — AI crime analytics &amp; decision suite
-          </p>
+          <p className="login-card__subtitle">{t('login.subtitle')}</p>
         </div>
 
         {error && (
@@ -50,7 +54,7 @@ export function LoginPage() {
 
         <div className="field">
           <label className="field__label" htmlFor="login-username">
-            Investigator username
+            {t('login.username')}
           </label>
           <div className="input-wrap">
             <UserIcon size={14} />
@@ -69,7 +73,7 @@ export function LoginPage() {
 
         <div className="field">
           <label className="field__label" htmlFor="login-password">
-            Secure password
+            {t('login.password')}
           </label>
           <div className="input-wrap">
             <Lock size={14} />
@@ -87,13 +91,10 @@ export function LoginPage() {
         </div>
 
         <button className="btn btn--primary" type="submit" disabled={submitting} style={{ width: '100%' }}>
-          {submitting ? <Spinner /> : 'Sign in'}
+          {submitting ? <Spinner /> : t('login.signIn')}
         </button>
 
-        <p className="login-card__footnote">
-          Authorized personnel only. All access, queries and exports are audited and
-          cryptographically registered under SCRB policy.
-        </p>
+        <p className="login-card__footnote">{t('login.footnote')}</p>
       </form>
     </div>
   );

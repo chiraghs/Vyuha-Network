@@ -26,6 +26,10 @@ require_admin = RoleChecker(["admin"])
 
 # Config keys the app actually reads — surfaced first in the console.
 KNOWN_KEYS = [
+    "CATALYST_AI_TOKEN",
+    "CATALYST_AI_MODEL",
+    "CATALYST_AI_ORG",
+    "CATALYST_AI_URL",
     "MOCK_AI_PIPELINE",
     "FALLBACK_AI_BASE_URL",
     "FALLBACK_AI_MODEL",

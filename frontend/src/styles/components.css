@@ -647,3 +647,32 @@
     transform: translateY(0);
   }
 }
+
+/* Language toggle (EN | ಕನ್ನಡ) */
+.lang-toggle {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--bg-inset);
+  border-radius: 999px;
+}
+
+.lang-toggle__opt {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+  line-height: 1.3;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.lang-toggle__opt:hover {
+  color: var(--text-1);
+}
+
+.lang-toggle__opt[aria-pressed='true'] {
+  background: var(--bg-surface);
+  color: var(--accent);
+  box-shadow: var(--shadow-1);
+}

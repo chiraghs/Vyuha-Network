@@ -12,35 +12,38 @@ import {
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useI18n } from '../../context/LanguageContext';
+import { LangToggle } from '../ui/LangToggle';
 import { titleCase } from '../../lib/format';
 import kspSeal from '../../assets/karnataka-seal.svg';
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
-  { to: '/map', label: 'Hotspot Map', icon: MapIcon },
-  { to: '/network', label: 'Link Analysis', icon: Share2 },
-  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { to: '/offenders', label: 'Offenders', icon: Users },
-  { to: '/assistant', label: 'AI Assistant', icon: MessageSquareText },
+  { to: '/', key: 'nav.overview', icon: LayoutDashboard, end: true },
+  { to: '/map', key: 'nav.map', icon: MapIcon },
+  { to: '/network', key: 'nav.network', icon: Share2 },
+  { to: '/analytics', key: 'nav.analytics', icon: BarChart3 },
+  { to: '/offenders', key: 'nav.offenders', icon: Users },
+  { to: '/assistant', key: 'nav.assistant', icon: MessageSquareText },
 ];
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
-  '/': { title: 'Command Overview', subtitle: 'State-wide crime intelligence at a glance' },
-  '/map': { title: 'Geospatial Hotspots', subtitle: 'Incident density and district drilldowns' },
-  '/network': { title: 'Criminal Link Analysis', subtitle: 'Accomplice networks and hub detection' },
-  '/analytics': { title: 'Correlation Analytics', subtitle: 'Socio-economic crime drivers' },
-  '/offenders': { title: 'Repeat Offender Registry', subtitle: 'Predictive recidivism risk scoring' },
-  '/assistant': { title: 'Investigation Assistant', subtitle: 'Bilingual conversational intelligence' },
+  '/': { title: 'page.overview.title', subtitle: 'page.overview.subtitle' },
+  '/map': { title: 'page.map.title', subtitle: 'page.map.subtitle' },
+  '/network': { title: 'page.network.title', subtitle: 'page.network.subtitle' },
+  '/analytics': { title: 'page.analytics.title', subtitle: 'page.analytics.subtitle' },
+  '/offenders': { title: 'page.offenders.title', subtitle: 'page.offenders.subtitle' },
+  '/assistant': { title: 'page.assistant.title', subtitle: 'page.assistant.subtitle' },
 };
 
 export function AppShell() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { t } = useI18n();
   const location = useLocation();
   const meta =
     PAGE_META[location.pathname] ??
     (location.pathname.startsWith('/offenders/')
-      ? { title: 'Offender Dossier', subtitle: 'Confidential intelligence profile' }
+      ? { title: 'page.offenders.title', subtitle: 'page.offenders.subtitle' }
       : PAGE_META['/']);
 
   return (
@@ -52,16 +55,16 @@ export function AppShell() {
           </span>
           <div className="sidebar__brand-text">
             <div className="sidebar__brand-name">Vyuha Network</div>
-            <div className="sidebar__brand-sub">KSP · SCRB Suite</div>
+            <div className="sidebar__brand-sub">{t('brand.sub')}</div>
           </div>
         </div>
 
-        <div className="sidebar__section">Intelligence</div>
+        <div className="sidebar__section">{t('nav.section')}</div>
         <nav className="sidebar__nav" aria-label="Primary">
-          {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+          {NAV_ITEMS.map(({ to, key, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end} className="nav-item">
               <Icon size={16} />
-              <span>{label}</span>
+              <span>{t(key)}</span>
             </NavLink>
           ))}
         </nav>
@@ -78,7 +81,7 @@ export function AppShell() {
           )}
           <button className="btn btn--ghost btn--sm" onClick={logout} style={{ justifyContent: 'flex-start' }}>
             <LogOut size={14} />
-            <span>Sign out</span>
+            <span>{t('common.signOut')}</span>
           </button>
         </div>
       </aside>
@@ -86,11 +89,12 @@ export function AppShell() {
       <div className="shell__main">
         <header className="topbar">
           <div>
-            <div className="topbar__title">{meta.title}</div>
-            <div className="topbar__subtitle">{meta.subtitle}</div>
+            <div className="topbar__title">{t(meta.title)}</div>
+            <div className="topbar__subtitle">{t(meta.subtitle)}</div>
           </div>
           <div className="topbar__actions">
-            <span className="live-dot">Live feed</span>
+            <span className="live-dot">{t('common.liveFeed')}</span>
+            <LangToggle />
             <button
               className="btn btn--ghost btn--icon"
               onClick={toggleTheme}

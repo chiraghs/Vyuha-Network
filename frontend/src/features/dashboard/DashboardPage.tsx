@@ -10,6 +10,7 @@ import { DonutChart } from '../../components/charts/DonutChart';
 import { TrendChart } from '../../components/charts/TrendChart';
 import { useChartTokens } from '../../components/charts/chartTheme';
 import { useApi } from '../../hooks/useApi';
+import { useI18n } from '../../context/LanguageContext';
 import { resolveStableColor, stableColorVar } from '../../lib/categories';
 import { formatNumber } from '../../lib/format';
 
@@ -31,6 +32,7 @@ function resolveVar(v: string): string {
 
 export function DashboardPage() {
   const tokens = useChartTokens();
+  const { t } = useI18n();
   const summaryState = useApi(() => AnalyticsAPI.summary(), []);
   const networkState = useApi(() => NetworkAPI.graph(), []);
   const summary = summaryState.data;
@@ -111,44 +113,44 @@ export function DashboardPage() {
       <div className="page__grid">
         <div className="kpi-grid">
           <StatTile
-            label="Registered cases"
+            label={t('dash.registeredCases')}
             icon={<FileText size={14} />}
             value={loading ? '—' : formatNumber(summary!.total)}
-            hint="FIRs in the analytics window"
+            hint={t('dash.registeredCases.hint')}
             provenance={{ label: 'Live · FIR DB', tone: 'live' }}
             loading={loading}
           />
           <StatTile
-            label="Active investigations"
+            label={t('dash.active')}
             icon={<Activity size={14} />}
             value={loading ? '—' : formatNumber(summary!.active)}
-            hint="Under investigation or pending trial"
+            hint={t('dash.active.hint')}
             accentColor="var(--status-warning)"
             provenance={{ label: 'Live · FIR DB', tone: 'live' }}
             loading={loading}
           />
           <StatTile
-            label="Heinous offences"
+            label={t('dash.heinous')}
             icon={<ShieldAlert size={14} />}
             value={loading ? '—' : formatNumber(heinous)}
-            hint="Gravity classified Heinous"
+            hint={t('dash.heinous.hint')}
             accentColor="var(--status-critical)"
             provenance={{ label: 'Computed', tone: 'computed' }}
             loading={loading}
           />
           <StatTile
-            label="Districts reporting"
+            label={t('dash.districts')}
             icon={<MapPin size={14} />}
             value={loading ? '—' : formatNumber(summary!.districts_reporting)}
-            hint="With registered incidents"
+            hint={t('dash.districts.hint')}
             provenance={{ label: 'Computed', tone: 'computed' }}
             loading={loading}
           />
           <StatTile
-            label="Network hubs"
+            label={t('dash.hubs')}
             icon={<Share2 size={14} />}
             value={metrics ? formatNumber(metrics.active_hubs) : '—'}
-            hint={metrics ? `${formatNumber(metrics.total_criminals)} tracked offenders` : 'Loading network…'}
+            hint={metrics ? `${formatNumber(metrics.total_criminals)} ${t('off.tracked').toLowerCase()}` : t('common.loading')}
             accentColor="var(--status-serious)"
             provenance={{ label: 'Inferred', tone: 'synthetic' }}
             loading={networkState.loading}
@@ -157,11 +159,7 @@ export function DashboardPage() {
 
         <div className="dash-grid">
           <div className="dash-grid__col">
-            <Card
-              title="Incident trend"
-              subtitle={`Weekly registered cases, top ${trend.series.length || '—'} sub-heads · last 12 weeks`}
-              flush
-            >
+            <Card title={t('dash.trend.title')} subtitle={t('dash.category.subtitle')} flush>
               {loading ? (
                 <div style={{ padding: 18 }}>
                   <Skeleton height={240} />
@@ -182,7 +180,7 @@ export function DashboardPage() {
               )}
             </Card>
 
-            <Card title="Crime sub-head distribution" subtitle="Registered cases by classification" flush>
+            <Card title={t('dash.category.title')} subtitle={t('dash.category.subtitle')} flush>
               {loading ? (
                 <div style={{ padding: 18 }}>
                   <Skeleton height={260} />
@@ -200,7 +198,7 @@ export function DashboardPage() {
           </div>
 
           <div className="dash-grid__col">
-            <Card title="Gravity split" subtitle="Heinous vs non-heinous offences" flush>
+            <Card title={t('dash.gravity.title')} subtitle={t('dash.gravity.subtitle')} flush>
               {loading ? (
                 <div style={{ padding: 18 }}>
                   <Skeleton height={70} />
@@ -243,7 +241,7 @@ export function DashboardPage() {
               )}
             </Card>
 
-            <Card title="Case status" subtitle="Resolution pipeline across all cases" flush>
+            <Card title={t('dash.status.title')} subtitle={t('dash.status.subtitle')} flush>
               {loading ? (
                 <div style={{ padding: 18 }}>
                   <Skeleton height={180} />
@@ -268,7 +266,7 @@ export function DashboardPage() {
               )}
             </Card>
 
-            <Card title="District pressure" subtitle="Highest incident volumes" flush>
+            <Card title={t('dash.districtPressure.title')} subtitle={t('dash.districtPressure.subtitle')} flush>
               {loading ? (
                 <div style={{ padding: 18 }}>
                   <Skeleton height={160} />
@@ -291,7 +289,7 @@ export function DashboardPage() {
               )}
             </Card>
 
-            <Card title="Crime heads" subtitle="Major-head case volumes" flush>
+            <Card title={t('dash.heads.title')} subtitle={t('dash.heads.subtitle')} flush>
               {loading ? (
                 <div style={{ padding: 18 }}>
                   <Skeleton height={120} />
