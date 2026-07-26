@@ -1,7 +1,9 @@
 import os
 import json
+import time
 import google.generativeai as genai
 from app.services.interfaces import BaseAIService
+from app.services.observability import metrics
 
 class GeminiAIService(BaseAIService):
     def __init__(self, api_key: str):
@@ -138,13 +140,144 @@ class MockAIService(BaseAIService):
         return "ಬೆಂಗಳೂರಿನಲ್ಲಿ ನಡೆದ ಇತ್ತೀಚಿನ ಕಳ್ಳತನ ಪ್ರಕರಣಗಳ ವಿವರ ಕೊಡಿ"
 
 
+class LLMAIService(BaseAIService):
+    """
+    Real LLM analysis via an OpenAI-compatible API. Defaults to Groq's free
+    endpoint (open models such as Llama 3.x). Configured entirely by env:
+
+      FALLBACK_AI_BASE_URL  (default https://api.groq.com/openai/v1)
+      FALLBACK_AI_MODEL     (default llama-3.3-70b-versatile)
+      FALLBACK_AI_API_KEYS  (comma-separated; tried in order for rate-limit
+                             failover on the free tier)
+
+    Every method degrades to the heuristic MockAIService on any error, so a
+    missing/invalid key or a network blip never breaks the request.
+    """
+
+    def __init__(self):
+        self.base_url = (os.getenv("FALLBACK_AI_BASE_URL") or "https://api.groq.com/openai/v1").rstrip("/")
+        self.model = (
+            os.getenv("FALLBACK_AI_MODEL") or os.getenv("GROQ_MODEL") or "llama-3.3-70b-versatile"
+        )
+        raw_keys = os.getenv("FALLBACK_AI_API_KEYS") or os.getenv("GROQ_API_KEY") or ""
+        self.keys = [k.strip() for k in raw_keys.split(",") if k.strip()]
+        self.provider = "groq" if "groq" in self.base_url else self.base_url
+
+    @staticmethod
+    def is_configured() -> bool:
+        return bool(os.getenv("FALLBACK_AI_API_KEYS") or os.getenv("GROQ_API_KEY"))
+
+    def _chat(self, system: str, user: str, json_mode: bool = False, max_tokens: int = 1024) -> str:
+        import requests
+
+        url = f"{self.base_url}/chat/completions"
+        body = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "temperature": 0.4,
+            "max_tokens": max_tokens,
+        }
+        if json_mode:
+            body["response_format"] = {"type": "json_object"}
+
+        last_err: Exception = RuntimeError("No FALLBACK_AI_API_KEYS configured")
+        for key in self.keys:  # rotate keys on rate-limit / auth failure
+            try:
+                resp = requests.post(
+                    url,
+                    headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                    json=body,
+                    timeout=30,
+                )
+                resp.raise_for_status()
+                return resp.json()["choices"][0]["message"]["content"].strip()
+            except Exception as exc:  # noqa: BLE001 — try the next key
+                last_err = exc
+                continue
+        raise last_err
+
+    def analyze_crime_pattern(self, query_text: str, historical_records: list) -> dict:
+        try:
+            records = json.dumps(historical_records[:30], default=str)
+            system = (
+                "You are a lead crime analyst for the Karnataka State Police. "
+                "Reply ONLY with a single JSON object, no prose."
+            )
+            user = (
+                "Analyse the investigator query against the recent FIR records and return JSON with keys: "
+                "summary (string), detected_patterns (array of strings), confidence_score (number 0-1), "
+                "recommended_actions (array of strings), audit_explanation (string). "
+                f"Investigator query: {query_text}\nFIR records: {records}"
+            )
+            start = time.perf_counter()
+            result = json.loads(self._chat(system, user, json_mode=True, max_tokens=1100))
+            metrics.record_ai(True, self.provider, self.model, (time.perf_counter() - start) * 1000)
+            return result
+        except Exception as exc:  # noqa: BLE001 — graceful degrade
+            metrics.record_ai(False, error=exc)
+            print(f"[LLMAIService] analyze_crime_pattern fell back: {exc}")
+            return MockAIService().analyze_crime_pattern(query_text, historical_records)
+
+    def calculate_risk_score_explanation(self, criminal_name: str, priors_count: int, crime_types: list) -> str:
+        try:
+            system = (
+                "You are a police intelligence analyst. Write a clinical, professional 3-4 sentence "
+                "recidivism risk assessment suitable for a dashboard. No preamble."
+            )
+            user = (
+                f"Suspect: {criminal_name}. Prior cases: {priors_count}. "
+                f"Offence types: {', '.join(crime_types) or 'unknown'}."
+            )
+            start = time.perf_counter()
+            result = self._chat(system, user, max_tokens=320)
+            metrics.record_ai(True, self.provider, self.model, (time.perf_counter() - start) * 1000)
+            return result
+        except Exception as exc:  # noqa: BLE001
+            metrics.record_ai(False, error=exc)
+            print(f"[LLMAIService] risk_explanation fell back: {exc}")
+            return MockAIService().calculate_risk_score_explanation(criminal_name, priors_count, crime_types)
+
+    def translate_kannada_query(self, query_text: str) -> dict:
+        cleaned = query_text.strip()
+        try:
+            system = "You are a translation assistant for the Karnataka State Police. Reply ONLY with JSON."
+            user = (
+                "Detect the language of the input. If Kannada, translate to English; if English, keep it. "
+                "Return JSON with keys: original_query (string), translated_query (string), "
+                "detected_language ('kn' or 'en'), confidence (number 0-1). "
+                f"Input: {cleaned}"
+            )
+            start = time.perf_counter()
+            result = json.loads(self._chat(system, user, json_mode=True, max_tokens=400))
+            metrics.record_ai(True, self.provider, self.model, (time.perf_counter() - start) * 1000)
+            return result
+        except Exception as exc:  # noqa: BLE001
+            metrics.record_ai(False, error=exc)
+            print(f"[LLMAIService] translate fell back: {exc}")
+            return MockAIService().translate_kannada_query(query_text)
+
+    def transcribe_kannada_audio(self, audio_bytes: bytes) -> str:
+        # Groq chat models don't transcribe audio; keep the existing stub.
+        return MockAIService().transcribe_kannada_audio(audio_bytes)
+
+
 class AIServiceFactory:
     @staticmethod
     def get_ai_service() -> BaseAIService:
-        """Factory method returning concrete AIService implementations following Open/Closed Principle."""
+        """
+        Concrete AIService selection (Open/Closed). Preference order:
+        1. Groq (free, open models) when GROQ_API_KEY is set — the real AI path.
+        2. Gemini when GEMINI_API_KEY is set and mock is not forced.
+        3. MockAIService otherwise (zero-config local/demo).
+        """
+        if LLMAIService.is_configured():
+            return LLMAIService()
+
         api_key = os.getenv("GEMINI_API_KEY")
         mock_pipeline = os.getenv("MOCK_AI_PIPELINE", "true").lower() == "true"
-        
         if not api_key or mock_pipeline:
             return MockAIService()
         return GeminiAIService(api_key=api_key)

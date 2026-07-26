@@ -1,10 +1,15 @@
 import os
+import time
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.database import Base, engine
-from app.api import auth, analytics, network, chat, intel
+from app.api import auth, analytics, network, chat, intel, admin
+from app.services import observability
+
+# Capture stdout/stderr into the admin log buffer as early as possible.
+observability.install_log_capture()
 
 # 1. Initialize DB tables
 Base.metadata.create_all(bind=engine)
@@ -37,12 +42,25 @@ if not (_on_catalyst or _disable_app_cors):
         allow_headers=["*"],
     )
 
-# 3. Include API Routers
+# 3. Request-metrics middleware (feeds the developer console).
+@app.middleware("http")
+async def _observe_requests(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = (time.perf_counter() - start) * 1000
+    route = request.scope.get("route")
+    path = getattr(route, "path", None) or request.url.path
+    observability.metrics.record_request(request.method, path, response.status_code, duration_ms)
+    return response
+
+
+# 4. Include API Routers
 app.include_router(auth.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
 app.include_router(network.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(intel.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
 
 
 @app.on_event("startup")

@@ -132,7 +132,11 @@ def extract_text(
         text = data.get("text", "")
         return {"text": text, "confidence": data.get("confidence")} if text else None
 
-    return _guarded(_run, timeout=28)
+    result = _guarded(_run, timeout=28)
+    from app.services.observability import metrics
+
+    metrics.record_ocr(success=result is not None)
+    return result
 
 
 # --------------------------------------------------------------------------- #

@@ -196,13 +196,17 @@ export function AssistantPage() {
     }
   };
 
-  const showSuggestions = useMemo(() => messages.length === 0 && !sending, [messages, sending]);
+  // Hero empty-state: only when there's truly no conversation yet.
+  const showEmptyState = useMemo(() => messages.length === 0 && !sending, [messages, sending]);
+  // Suggestion chips: always available above the composer while the input is
+  // empty — regardless of prior history (which is restored from the ledger).
+  const showSuggestionChips = !sending && draft.trim() === '';
 
   return (
     <main className="page page--flush assistant-page">
       <div className="chat-column">
         <div className="chat-scroll" ref={scrollRef}>
-          {showSuggestions ? (
+          {showEmptyState ? (
             <EmptyState
               icon={<Sparkles size={30} />}
               title="Ask the investigation assistant"
@@ -282,7 +286,7 @@ export function AssistantPage() {
         </div>
 
         <div className="chat-composer">
-          {showSuggestions && (
+          {showSuggestionChips && (
             <div className="suggestion-row">
               {SUGGESTIONS.map((suggestion) => (
                 <button

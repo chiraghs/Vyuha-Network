@@ -109,6 +109,54 @@ export const IntelAPI = {
   },
 };
 
+export interface AdminConfigKey {
+  key: string;
+  value: string | null;
+  set: boolean;
+  secret: boolean;
+  needs_restart: boolean;
+}
+
+export interface AdminMetrics {
+  uptime_s: number;
+  request_count: number;
+  by_status: Record<string, number>;
+  top_routes: Array<[string, number]>;
+  recent: Array<{ t: number; method: string; route: string; status: number; ms: number }>;
+  ai: {
+    calls: number;
+    real: number;
+    fallback: number;
+    provider: string | null;
+    model: string | null;
+    last_error: string | null;
+    last_latency_ms: number | null;
+  };
+  ocr: { calls: number; success: number; fallback: number };
+  ai_configured: boolean;
+  ocr_configured: boolean;
+}
+
+export interface AdminLogLine {
+  t: number;
+  level: string;
+  line: string;
+}
+
+export const AdminAPI = {
+  config: () =>
+    api
+      .get<{ known: AdminConfigKey[]; others: Record<string, string | null> }>('/admin/config')
+      .then((r) => r.data),
+  setConfig: (key: string, value: string) =>
+    api.put('/admin/config', { key, value }).then((r) => r.data),
+  deleteConfig: (key: string) =>
+    api.delete(`/admin/config/${encodeURIComponent(key)}`).then((r) => r.data),
+  logs: (limit = 200) =>
+    api.get<{ logs: AdminLogLine[] }>('/admin/logs', { params: { limit } }).then((r) => r.data),
+  metrics: () => api.get<AdminMetrics>('/admin/metrics').then((r) => r.data),
+};
+
 export const ChatAPI = {
   send: (queryText: string) =>
     api.post<ChatReply>('/chat', { query_text: queryText }).then((r) => r.data),
