@@ -216,16 +216,28 @@ scale-up. `AUTO_SEED=true` re-seeds each fresh instance, which is fine for a dem
 but means writes (new chat audit rows, etc.) are not durable or shared across
 instances.
 
-For durable, shared data, point the app at an external Postgres:
+For durable, shared data, point the app at an external Postgres. The
+`psycopg2-binary` driver is already in `requirements.txt`, and the app is
+verified against Postgres (the dialect-specific weekly-trend query switches to
+`to_char` automatically). **Set `DATABASE_URL` as an environment variable on the
+`vyuha-api` AppSail app in the Catalyst console** (not in the image/git):
 
 ```
-DATABASE_URL=postgresql+psycopg://user:pass@host:5432/vyuha
+DATABASE_URL=postgresql://user:pass@host:5432/vyuha
 ```
 
-(Add `psycopg[binary]` to `requirements.txt` if you use Postgres.) The SQLAlchemy
-models work unchanged. The fully-native option is **Catalyst Data Store** (hosted
-relational DB via the SDK) — that would require porting the data layer off
-SQLAlchemy and is out of scope here; see the research doc §7.
+Get a managed Postgres from Neon, Supabase, Zoho, or your own host — any
+network-reachable Postgres works. On first boot `AUTO_SEED=true` seeds it once
+(idempotent — it no-ops when data already exists), and every later redeploy /
+scale-up reuses the same durable data. Set `AUTO_SEED=false` once you load real
+FIR data. The SQLAlchemy models work unchanged; SQLite stays the zero-config
+local default.
+
+The fully-native alternative is **Catalyst Data Store** (hosted relational DB via
+the SDK), which would require porting the data layer off SQLAlchemy — a larger
+change gated on console schema setup; see the research doc §7. The **Database
+Connector CodeLib** is a query-proxy for simple SELECT-over-HTTP use cases and is
+not a fit for this ORM-backed app.
 
 ---
 

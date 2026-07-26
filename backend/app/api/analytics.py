@@ -284,9 +284,15 @@ def get_summary(
         .all()
     )
 
-    # Weekly trend for the last 12 weeks, per crime sub-head.
+    # Weekly trend for the last 12 weeks, per crime sub-head. The year-week
+    # bucket expression is dialect-specific (SQLite has no to_char; Postgres has
+    # no strftime), so pick the right one for the connected database.
     since = datetime.utcnow() - timedelta(weeks=12)
-    week_expr = func.strftime("%Y-%W", models.CaseMaster.CrimeRegisteredDate)
+    dialect = db.bind.dialect.name if db.bind is not None else "sqlite"
+    if dialect == "postgresql":
+        week_expr = func.to_char(models.CaseMaster.CrimeRegisteredDate, "IYYY-IW")
+    else:
+        week_expr = func.strftime("%Y-%W", models.CaseMaster.CrimeRegisteredDate)
     trend_rows = scoped(
         db.query(
             models.CrimeSubHead.CrimeHeadName,
