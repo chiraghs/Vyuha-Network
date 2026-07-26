@@ -27,10 +27,10 @@ Catalyst AI (Zia OCR, GLM chat) wired in.
 *   **Document Processing**: PyPDF (extracts text from uploaded PDF case files).
 
 ### Artificial Intelligence & Cognitive Services
-*   **Primary LLM Engine**: Zoho Catalyst QuickML GLM (chat analysis & translations).
+*   **Primary LLM Engine**: Zoho Catalyst QuickML GLM (chat analysis, translations, and pattern queries).
+*   **Cognitive Services (OCR)**: Zoho Catalyst Zia Services (text extraction from scanned case papers).
 *   **Fallback LLM Engine**: Groq API / Llama-3-8b (secondary model tier).
 *   **Legacy LLM Engine**: Google Gemini 1.5 Flash (fallback model tier).
-*   **OCR Services**: Zoho Catalyst Zia Services (scans legal papers/images).
 
 ### Frontend Dashboard Client
 *   **Client Core**: React 18.3 & TypeScript 5.2.
@@ -40,10 +40,11 @@ Catalyst AI (Zia OCR, GLM chat) wired in.
 *   **Styling Theme**: Vanilla HSL CSS with Glassmorphism properties.
 *   **Icons**: Lucide Icons.
 
-### Deployment & Infrastructure
-*   **Hosting Platform**: Zoho Catalyst Cloud Serverless.
-*   **Containers**: AppSail (Docker container backend deployment).
-*   **Static Hosting**: Catalyst Web Client Hosting (serves React assets).
+### Deployment & Infrastructure (Zoho Catalyst Ecosystem)
+*   **Serverless Hosting**: Zoho Catalyst Cloud Serverless platform.
+*   **Docker Container Hosting**: Zoho Catalyst AppSail (stateless backend hosting).
+*   **Web Client Hosting**: Zoho Catalyst client-site hosting (serves built React SPA).
+*   **Identity & OAuth Provider**: Zoho Accounts (handles API credentials and token refreshing).
 
 ---
 
@@ -140,48 +141,70 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    subgraph Users["User Personas"]
+    %% Custom Node Styling Classes
+    classDef user fill:#0F172A,stroke:#3B82F6,stroke-width:2px,color:#F3F4F6;
+    classDef ingest fill:#1E293B,stroke:#9CA3AF,stroke-width:1px,color:#F3F4F6;
+    classDef process fill:#0B0F19,stroke:#FBBF24,stroke-width:2px,color:#F3F4F6;
+    classDef output fill:#030712,stroke:#10B981,stroke-width:2px,color:#F3F4F6;
+
+    subgraph Layer1["1. User Ingress & Input Intake"]
         INV["Investigator (Field Officer)"]
         EXEC["SCRB Executive (Command Staff)"]
-    end
-
-    subgraph Ingest["1. Data Ingestion & Intake"]
-        VOICE["Kannada / English Voice Input"]
+        VOICE["Kannada/English Voice Input"]
         TEXT["Text Query Input"]
-        DOCS["BYOD Ingest (PDF / TXT upload)"]
+        DOCS["BYOD PDF/TXT File Upload"]
+        HIST["Historical KSP Crime Database"]
     end
 
-    subgraph Proc["2. Processing & Analysis Layer"]
-        STT["Zia / Whisper STT Transcription"]
+    subgraph Layer2["2. Processing & Analysis Engine"]
+        STT["Zia STT / Audio Transcriber"]
         TRANS["Bilingual Translation Bridge"]
-        EXTR["pypdf Text Extraction"]
-        DB_QUERY["ACID Database Query"]
-        AI_QUERY["AI Chain (GLM / Groq / Gemini)"]
+        EXTR["pypdf Text Extractor"]
+        AI_QUERY["AI Chain (GLM/Groq/Gemini)"]
+        DB_QUERY["Analytics DW"]
     end
 
-    subgraph Out["3. Visual & Audit Outputs"]
-        MAP["Geospatial Hotspots & GIS Map"]
-        NET["Criminal Network Accomplice Graph"]
-        CHAT["Explainable AI Answers & Advisories"]
-        PDF["ReportLab signed PDF Log Export"]
-        LEDGER["SHA-256 Cryptographic Log Verification"]
+    subgraph Layer3["3. Actionable Visual & Audit Outputs"]
+        MAP["Geospatial Map (Hotspots)"]
+        NET["Accomplice Graph (Networks)"]
+        CHAT["Conversational AI (Advisories)"]
+        PDF["Signed PDF Log Export"]
+        LEDGER["SHA-256 Audit Ledger"]
     end
 
+    %% User to Input Routing
     INV --> VOICE
     INV --> TEXT
     INV --> DOCS
     EXEC --> TEXT
+    EXEC --> HIST
 
-    VOICE --> STT --> TRANS --> AI_QUERY
-    TEXT --> TRANS --> AI_QUERY
-    DOCS --> EXTR --> AI_QUERY
+    %% Input to Processing Ingestion
+    VOICE --> STT
+    TEXT --> TRANS
+    DOCS --> EXTR
+    HIST --> DB_QUERY
 
+    %% Ingestion Pipeline Flow
+    STT --> TRANS
+    TRANS --> AI_QUERY
+    EXTR --> AI_QUERY
+    
+    %% AI to Analytics DB Lookup
     AI_QUERY --> DB_QUERY
+
+    %% Final Outputs Generation
     DB_QUERY --> MAP
     DB_QUERY --> NET
     AI_QUERY --> CHAT
     CHAT --> LEDGER
     CHAT --> PDF
+
+    %% Assigning Classes to Nodes
+    class INV,EXEC user;
+    class VOICE,TEXT,DOCS,HIST ingest;
+    class STT,TRANS,EXTR,AI_QUERY,DB_QUERY process;
+    class MAP,NET,CHAT,PDF,LEDGER output;
 ```
 
 ### AI chain (`backend/app/services/ai_service.py`)
@@ -341,10 +364,14 @@ Backend: Python 3.12/3.14, FastAPI, Uvicorn, SQLAlchemy 2.0 ORM, PostgreSQL (pro
 ### 🖼️ Visual Feature Reference Table
 | System Module | Operational Capability | Primary Tech Utilized | File/Code Reference |
 | :--- | :--- | :--- | :--- |
+| **Backend Core Engine** | ACID Transactions, role-based JWT auth, and paginated routes | Python 3.12/3.14, FastAPI, Uvicorn, SQLAlchemy 2.0 ORM, PostgreSQL / SQLite | [main.py](backend/app/main.py) |
+| **Frontend Client Core** | Localized EN/KN Single Page Application (SPA) dashboard client | React 18.3, TypeScript 5.2, Vite 5.2, HSL CSS (Glassmorphism), Lucide Icons | [App.tsx](frontend/src/App.tsx) |
+| **Deployment & hosting** | Stateless AppSail containers scaling and static web assets serving | Zoho Catalyst AppSail (Docker hosting), Web Client Hosting | [catalyst.json](catalyst.json) |
 | **Command Overview** | Real-time KPIs, incident trends, & socio-economic correlations | SQL aggregations, custom CSS charts | [analytics.py](backend/app/api/analytics.py) |
 | **Geospatial Map** | Clustered hotspot coordinates & district-level filters | Leaflet.js GIS, custom dark-tile masking | [map.js](frontend/src/features/dashboard/map.js) |
 | **Accomplice Graph** | Force-directed accomplice lines & offender hub highlights | Custom HTML5 Canvas Verlet physics | [ForceGraph.tsx](frontend/src/features/network/ForceGraph.tsx) |
-| **Bilingual Assistant** | Speech-to-text queries in EN/KN with signed PDF ledger exports | Zia STT, translation bridge, ReportLab | [ai_service.py](backend/app/services/ai_service.py) |
+| **Bilingual Assistant** | Speech-to-text queries in EN/KN with signed PDF ledger exports | Zoho Catalyst QuickML GLM, Zia STT, translation bridge, ReportLab | [ai_service.py](backend/app/services/ai_service.py) |
+| **Zia Document Ingestion** | Extracts text from scanned paper case logs server-to-server | Zoho Catalyst Zia Services (OCR Function) | [catalyst-zia-services](functions/catalyst-zia-services) |
 | **BYOD Intake** | Drag-drop files processing & document-specific context Q&A | Decoupled server, `pypdf`, SQLite | [documents.py](backend/app/api/documents.py) |
-| **Admin Console** | Key configuration changes at runtime & logs streaming | FastAPI SSE, AppSail config manager | [admin.py](backend/app/api/admin.py) |
+| **Admin Console** | Key configuration changes at runtime & logs streaming | FastAPI SSE, Zoho Catalyst AppSail Config Manager | [admin.py](backend/app/api/admin.py) |
 
