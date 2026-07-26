@@ -49,3 +49,5 @@ Thumbs.db
 .env.staging
 .env.production
 .env.development
+frontend/.env.production
+.catalystrc

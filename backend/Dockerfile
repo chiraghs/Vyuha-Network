@@ -17,6 +17,17 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Runtime config for the Catalyst deployment. The client (Web Client Hosting)
+# is a separate origin, and the API is stateless Bearer-token auth, so wildcard
+# CORS (credentials off) is safe. Flip MOCK_AI_PIPELINE / CATALYST_AI_ENABLED
+# here (or in the console) to enable Gemini / Zia.
+# Catalyst's AppSail gateway handles CORS; the app must not add its own or the
+# browser sees duplicate Access-Control-Allow-Origin headers.
+ENV DISABLE_APP_CORS=true \
+    MOCK_AI_PIPELINE=true \
+    CATALYST_AI_ENABLED=false \
+    AUTO_SEED=true
+
 # Catalyst injects the port via X_ZOHO_CATALYST_LISTEN_PORT (default 9000).
 EXPOSE 9000
 CMD ["python3", "-u", "catalyst_server.py"]

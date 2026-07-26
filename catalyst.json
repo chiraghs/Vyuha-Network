@@ -1,5 +1,11 @@
 {
   "client": {
     "source": "client"
-  }
+  },
+  "appsail": [
+    {
+      "source": "docker://localhost/vyuha-api:latest",
+      "name": "vyuha-api"
+    }
+  ]
 }

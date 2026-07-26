@@ -14,4 +14,9 @@ echo "▸ Staging dist/ into client/ (keeping client-package.json)"
 find "$CLIENT" -mindepth 1 -maxdepth 1 ! -name 'client-package.json' ! -name '.gitignore' -exec rm -rf {} +
 cp -R "$FRONTEND/dist/." "$CLIENT/"
 
+# Catalyst forbids the 404 page from equalling the homepage, but SPA routing
+# needs unknown paths to serve the app shell — so ship a 404.html that is a
+# copy of index.html (same bundle → the client router takes over).
+cp "$CLIENT/index.html" "$CLIENT/404.html"
+
 echo "✓ Client staged at $CLIENT"

@@ -1,5 +1,11 @@
 # Deploying Vyuha Network to Zoho Catalyst
 
+> **✅ Verified live deployment (development env).** The exact working flow is in
+> the "Verified deployment" section at the bottom — it corrects a few assumptions
+> in the original guide (Docker registration protocol, the `/app/` base path, the
+> `404.html` rule, and CORS being owned by the AppSail gateway). Read that first.
+
+
 This guide deploys the two halves of the app to one Catalyst project:
 
 | Component | Catalyst service | Source |
@@ -261,3 +267,65 @@ catalyst deploy --only appsail
 ## Demo credentials
 
 `officer` / `officer123` · `admin` / `admin123` · `executive` / `executive123`
+
+---
+
+## Verified deployment (what actually worked)
+
+Deployed to the Catalyst **Development** environment. Corrections vs. the guide
+above, in the order they mattered:
+
+### 1. Backend — Docker AppSail (build locally, register by protocol)
+`catalyst appsail:add --source <dir>` registers a **managed** runtime, not
+Docker. For a Docker app you build the image yourself and register it with a
+protocol URI:
+
+```bash
+# build for Catalyst's Linux runtime (host is Apple Silicon → cross-build)
+cd backend
+docker build --platform linux/amd64 -t vyuha-api:latest -t localhost/vyuha-api:latest .
+
+# register the local image (note the docker:// protocol + localhost/ prefix)
+cd ..
+catalyst appsail:add --name vyuha-api --source "docker://localhost/vyuha-api:latest"
+catalyst deploy --only appsail          # prints the AppSail URL
+```
+
+The image tag **must** be `localhost/<name>:tag` to match `docker://localhost/…`.
+Rebuild + `catalyst deploy --only appsail` to ship changes.
+
+### 2. CORS is handled by the AppSail gateway — the app must NOT add its own
+Catalyst's AppSail gateway injects `Access-Control-Allow-Origin` (echoing the
+request origin). If the app *also* adds CORS you get two conflicting origin
+headers and the browser blocks every call. The Dockerfile sets
+`DISABLE_APP_CORS=true`; `app/main.py` skips its CORS middleware whenever it
+detects Catalyst (or that flag). Local dev still adds CORS normally.
+
+### 3. Frontend is served under `/app/` → set the Vite base + router basename
+Web Client Hosting serves the client at `https://<domain>/app/index.html`, so
+absolute `/assets/...` paths 404. `vite.config.ts` uses `base: '/app/'` for
+production builds and `main.tsx` passes `basename={import.meta.env.BASE_URL}` to
+the router. Local dev stays at `/`.
+
+### 4. The 404 page cannot equal the homepage
+Catalyst rejects `"404": "index.html"`. `build-client.sh` copies `index.html` to
+`404.html` and `client-package.json` uses `"404": "404.html"` — same bundle, so
+the SPA router still handles deep links (verified: refreshing `/app/offenders`
+works).
+
+### Full sequence
+```bash
+# backend
+cd backend && docker build --platform linux/amd64 -t vyuha-api:latest -t localhost/vyuha-api:latest . && cd ..
+catalyst appsail:add --name vyuha-api --source "docker://localhost/vyuha-api:latest"
+catalyst deploy --only appsail            # -> AppSail URL
+
+# frontend (point at the AppSail URL, then build + deploy)
+printf 'VITE_API_BASE_URL=<AppSail URL>\nVITE_CATALYST_AI=false\n' > frontend/.env.production
+./scripts/build-client.sh
+catalyst deploy --only client             # -> client URL (…/app/index.html)
+```
+
+To enable Catalyst Zia AI later: set `CATALYST_AI_ENABLED=true` in the Dockerfile
+`ENV` (rebuild + redeploy backend) and `VITE_CATALYST_AI=true` in
+`frontend/.env.production` (rebuild + redeploy client).

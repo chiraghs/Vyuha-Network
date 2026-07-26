@@ -16,23 +16,26 @@ app = FastAPI(
 )
 
 # 2. Configure CORS.
-# On Catalyst the client (Web Client Hosting) and this API (AppSail) are served
-# from different origins, so the allowed origins are supplied via the
-# CORS_ALLOW_ORIGINS env var (comma-separated). Local dev origins are always
-# permitted so `npm run dev` keeps working.
-_default_origins = ["http://localhost:5173", "http://localhost:3000"]
-_env_origins = [
-    o.strip() for o in os.getenv("CORS_ALLOW_ORIGINS", "").split(",") if o.strip()
-]
-_allow_all = os.getenv("CORS_ALLOW_ALL", "false").lower() == "true"
+# On Catalyst the AppSail gateway already injects CORS headers (it echoes the
+# request origin), so adding our own here would emit a SECOND, conflicting
+# Access-Control-Allow-Origin and the browser would reject every cross-origin
+# call. We therefore skip app-level CORS when running on Catalyst (detected via
+# the injected X_ZOHO_CATALYST_LISTEN_PORT, or forced with DISABLE_APP_CORS) and
+# keep it for local dev where nothing else adds the headers.
+_on_catalyst = bool(os.getenv("X_ZOHO_CATALYST_LISTEN_PORT"))
+_disable_app_cors = os.getenv("DISABLE_APP_CORS", "false").lower() == "true"
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"] if _allow_all else [*_default_origins, *_env_origins],
-    allow_credentials=not _allow_all,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+if not (_on_catalyst or _disable_app_cors):
+    _default_origins = ["http://localhost:5173", "http://localhost:3000"]
+    _env_origins = [o.strip() for o in os.getenv("CORS_ALLOW_ORIGINS", "").split(",") if o.strip()]
+    _allow_all = os.getenv("CORS_ALLOW_ALL", "false").lower() == "true"
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"] if _allow_all else [*_default_origins, *_env_origins],
+        allow_credentials=not _allow_all,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # 3. Include API Routers
 app.include_router(auth.router, prefix="/api")

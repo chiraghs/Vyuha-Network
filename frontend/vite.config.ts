@@ -2,7 +2,11 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
-export default defineConfig({
+// Catalyst Web Client Hosting serves the built app under `/app/`, so production
+// builds use that base (assets + router basename resolve correctly). Local dev
+// stays at `/` so the API proxy and dev URL are unchanged.
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? '/app/' : '/',
   plugins: [react()],
   build: {
     rollupOptions: {
@@ -25,4 +29,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
