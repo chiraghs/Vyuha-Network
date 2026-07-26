@@ -1,190 +1,224 @@
-# Vyuha Network - AI-Driven Crime Analytics & Conversational Intelligence Platform
-*Karnataka State Police (KSP) Decision-Support & Criminal Intelligence System*
+# Vyuha Network — AI-Driven Crime Analytics & Visualization Platform
+*Karnataka State Police (KSP) · State Crime Records Bureau (SCRB) decision-support suite*
 
-Vyuha Network is an enterprise-ready, intelligence-grade analytics and conversational platform. It empowers police investigators and the State Crime Records Bureau (SCRB) of Karnataka to search, filter, and analyze fragmented records from 1100+ police stations in real-time. It maps criminal associations, highlights hot spots geographically, scores recidivism risks, and answers queries in English and Kannada via an audit-tracked conversational interface.
+Vyuha Network turns fragmented FIR records into actionable intelligence. It gives
+investigators and the SCRB interactive dashboards, geospatial hotspot maps,
+district drilldowns, criminal link analysis, predictive recidivism scoring, and a
+bilingual (English / **ಕನ್ನಡ**) AI assistant — all over the **official Karnataka
+Police FIR database schema**.
+
+Built on and **deployed to Zoho Catalyst** (AppSail + Web Client Hosting), with
+Catalyst AI (Zia OCR, GLM chat) wired in.
+
+> **Live (Catalyst development env)**
+> - App: `https://vyuha-network-60080167463.development.catalystserverless.in/app/index.html`
+> - API: `https://vyuha-api-50044361539.development.catalystappsail.in`
+> - Developer console: `…/app/admin`
+> - Logins: `officer / officer123` · `admin / admin123` · `executive / executive123`
 
 ---
 
-## Key Features
+## Key features
 
-*   **Interactive Geospatial Maps**: Visualizes crime clusters, hotspots, and district-level drilldowns utilizing Leaflet mapping overlays.
-*   **Geospatial & Socio-Economic Correlation**: Overlays district demographic data with crime statistics to reveal correlations with employment, literacy, and land parameters.
-*   **Criminal Network & Link Analysis**: Renders interactive association graphs showing partnerships, co-offender status, and crime-ring associations using interactive graph visualizers.
-*   **Bilingual Chat Assistant (English & Kannada)**: Supports voice and text conversations to query KSP crime records, translate questions, and summarize legal details in both English and Kannada.
-*   **Explainable AI & Audit Trails**: Generates structured chain-of-thought reasonings explaining risk scores, backed by strict cryptographic auditing hashes saved per query.
-*   **Audit-Ready PDF Exporting**: Packages query histories, active investigation charts, and network graphs into signed PDFs for case evidence binders.
+- **Command overview** — SQL-aggregated KPIs, weekly incident trend, gravity split
+  (Heinous vs non-heinous), case-status pipeline, district pressure, crime-head volumes.
+- **Geospatial hotspots** — Karnataka-only Leaflet map (rest of the map masked),
+  incident + density layers, district polygons, click-a-district to filter/zoom,
+  and a full FIR case drawer (CrimeNo, gravity, acts & sections, IO, court,
+  chargesheet outcome, complainant profile).
+- **Criminal link analysis** — canvas force-graph inferred from co-accused
+  relationships; hub detection, risk-banded nodes, zoom-to-spread, AI risk panel.
+- **Offender registry & dossiers** — identity-resolved from accused records,
+  paginated, predictive recidivism scoring; printable per-offender dossier (crime
+  history, arrests, chargesheets, crime-head breakdown, acts, associates).
+- **Correlation analytics** — complainant occupation × crime-head and community ×
+  crime-head, with auto-generated analyst notes.
+- **Bilingual AI assistant** — chat grounded in the live FIR DB, real LLM
+  responses, sentiment/keyword enrichment, hash-verified audit ledger, PDF export,
+  and a Zia-OCR "scan document" intake.
+- **Full Kannada / English UI** — a topbar toggle (`EN | ಕನ್ನಡ`) switches the whole
+  interface; the choice persists.
+- **Developer console (`/admin`)** — admin-gated: live metrics (API/AI/OCR calls),
+  runtime environment editor (set keys without redeploying), and a log tail.
+- **Light / dark themes** throughout.
 
 ---
 
-## System Architecture
-
-The following diagram illustrates how incoming inquiries and telemetry requests are load-balanced, authenticated via JWT/RBAC, queried, and processed using standard police records databases:
+## Architecture
 
 ```mermaid
 flowchart TD
-    subgraph "Clients & Frontends"
-        Officer["Investigator Portal (Vite React)"]
-        Admin["SCRB Executive Panel"]
-        Nginx["Nginx Gateway Proxy"]
+    subgraph Client["Web Client Hosting (Catalyst)"]
+        SPA["React + Vite SPA (/app) · EN/ಕನ್ನಡ"]
+    end
+    subgraph AppSail["AppSail (Docker · FastAPI)"]
+        API["FastAPI · JWT auth · paginated + SQL-aggregated API"]
+        OBS["Observability (metrics + log buffer) → /admin"]
+    end
+    subgraph Fn["Catalyst Functions"]
+        ZIA["catalyst-zia-services (Zia OCR CodeLib)"]
+    end
+    subgraph AI["AI chain (primary → fallback)"]
+        GLM["Catalyst QuickML GLM"]
+        GROQ["Groq (open Llama models)"]
+        MOCK["Heuristic mock"]
+    end
+    subgraph DB["Data"]
+        PG[("PostgreSQL (DATABASE_URL)")]
+        SQLITE[("SQLite (local/dev default)")]
     end
 
-    subgraph "FastAPI Backend Servers"
-        FastAPI1["FastAPI Instance 1"]
-        FastAPI2["FastAPI Instance 2"]
-    end
-
-    subgraph "Cache & Limit Layer (Redis)"
-        Cache[("Redis Session & Token Cache")]
-    end
-
-    subgraph "AI Services"
-        Gemini["Google Gemini NLP & Vision API"]
-        STT["Google Speech-to-Text API"]
-        TTS["Google Text-to-Speech API"]
-    end
-
-    subgraph "Databases (OLTP/OLAP)"
-        Postgres[("Google Cloud SQL / Postgres (OLTP)")]
-        BigQuery[("Google BigQuery Analytics Workspace")]
-    end
-
-    %% Client flows
-    Officer -->|Submit Queries / Map Views| Nginx
-    Admin -->|Dashboard & Auditing Checks| Nginx
-    Nginx -->|Load Balance Requests| FastAPI1
-    Nginx -->|Load Balance Requests| FastAPI2
-
-    %% Redis Cache
-    FastAPI1 -->|Verify API Rate limits| Cache
-
-    %% AI Pipeline
-    FastAPI1 -->|Intense Pattern Queries| Gemini
-    FastAPI1 -->|Ingest Voice Notes| STT
-    FastAPI1 -->|Read out Audio Alerts| TTS
-
-    %% Relational Datastores
-    FastAPI1 -->|Relational Query Writes| Postgres
-    Postgres <---|BigQuery External Federated Bridge| BigQuery
+    SPA -->|/api · CORS| API
+    API --> OBS
+    API -->|document OCR| ZIA
+    API -->|chat / risk / translate| GLM
+    GLM -->|on failure| GROQ
+    GROQ -->|on failure| MOCK
+    API --> PG
+    API --> SQLITE
 ```
+
+### AI chain (`backend/app/services/ai_service.py`)
+
+Selection is a graceful chain — each tier falls back to the next on any error:
+
+1. **Catalyst QuickML GLM** (primary) — set `CATALYST_AI_TOKEN`.
+2. **Groq** (OpenAI-compatible, free open models) — set `FALLBACK_AI_*`.
+3. **Gemini** — legacy, if `GEMINI_API_KEY` and mock not forced.
+4. **Heuristic mock** — zero-config default.
+
+JSON parsing tolerates code fences and `<think>` reasoning blocks. Keys are set at
+runtime via the `/admin` console (or the Catalyst console) — never committed.
+
+### Catalyst AI features
+
+- **Zia OCR** — installed as a Catalyst Function via the Zia Services CodeLib; the
+  backend calls it server-to-server so the secret never reaches the browser.
+- **Catalyst GLM** — the primary chat/analysis model (see chain above).
 
 ---
 
-## AI & Machine Learning Module Architecture
+## Data model — official Karnataka Police FIR schema
 
-`ai_service.py` is the core parsing engine of Vyuha Network. It interfaces with Google Gemini to process voice logs, resolve text semantics, and build graphs:
+The backend implements the full FIR ER schema (see
+[`docs/fir-schema.md`](docs/fir-schema.md)) — ~25 tables including:
 
-```
-                   ┌──────────────────────────────────────────┐
-                   │    Intake (Chat / Voice Query / Search)  │
-                   └────────────────────┬─────────────────────┘
-                                        │
-                                        ▼
-                   ┌──────────────────────────────────────────┐
-                   │               ai_service.py              │
-                   └──────┬─────────────┬──────────────┬──────┘
-                          │             │              │
-         ┌────────────────┴┐    ┌───────┴────────┐    ┌┴────────────────┐
-         │   Audio Parser  │    │  Link Analyzer │    │  Anomaly Engine │
-         │  (stt_service)  │    │(network_service)│    │(predictive_svc) │
-         └─────────────────┘    └────────────────┘    └─────────────────┘
-```
+- **CaseMaster** — the FIR, with the 18-digit structured `CrimeNo`
+  (`category + district + unit + year + serial`), gravity, crime head/sub-head,
+  status, court, lat/long, brief facts.
+- **People** — `ComplainantDetails`, `Victim`, `Accused` (+ `ArrestSurrender` and
+  the `inv_arrestsurrenderaccused` junction).
+- **Legal** — `Act`, `Section`, `ActSectionAssociation`; **classification** —
+  `CrimeHead`, `CrimeSubHead`; **outcome** — `ChargesheetDetails`.
+- **Org / geography** — `Employee`, `Unit`, `UnitType`, `Court`, `District`,
+  `State`, `Rank`, `Designation`, and lookups (Caste/Religion/Occupation,
+  CaseCategory, GravityOffence, CaseStatusMaster).
 
-### Module Directory & Roles
+Offenders and the criminal network are **inferred** (there is no global person
+table in the schema): accused are resolved across cases by a stable key, and the
+network is built from co-accused on shared cases.
 
-1.  **`ai_service.py` (Gemini Orchestrator)**: Parses raw user inputs, extracts entities (names, IPC sections, dates), determines intention, and responds in the target language (English/Kannada).
-2.  **`network_service.py` (Link-Analysis Engine)**: Extracts relational co-occurrences of suspect mentions across FIR reports, building interactive graph metrics (degree centrality, sub-clique groups).
-3.  **`predictive_service.py` (Recidivism Risk & Hotspots)**: Models statistical probabilities of offender recidivism using scoring indices based on crime patterns, geo-velocity, and demographics.
-4.  **`translation_service.py` (Bilingual Bridge)**: Translates colloquial Kannada queries into structured English search parameters, mapping back to official police lexicon database records.
-5.  **`pdf_service.py` (Report Document Builder)**: Generates signed and sealed PDF reports containing search summaries, network graph images, and digital verification signatures.
+**Persistence:** SQLite is the zero-config local default; set `DATABASE_URL` to a
+Postgres instance for durable, shared data (verified — the app is Postgres-ready,
+with dialect-aware queries). AppSail is stateless, so a bundled SQLite reseeds on
+redeploy; `AUTO_SEED` is idempotent.
 
 ---
 
-## System Data Model
-
-Vyuha Network utilizes a CQRS design that isolates relational case records from analytics pipelines:
-
-### 1. Relational Database Schema (OLTP - PostgreSQL)
-*   **`users`**: Police credentials, credentials hashes, roles (`officer`, `admin`, `scrb_executive`), and police station IDs.
-*   **`districts`**: District geographic boundaries and regional statistics.
-*   **`police_stations`**: Metadata for all 1100+ stations in Karnataka.
-*   **`criminals`**: Profile index including names, aliases, fingerprints, active status, and recidivism scores.
-*   **`crimes`**: Registered case reports (FIR number, station, timestamp, location, crime type, descriptions).
-*   **`crime_criminals`**: Junction table mapping suspects to cases (role, status).
-*   **`criminal_networks`**: Node-link strength weights connecting criminal profiles based on co-arrests and associations.
-*   **`chat_audits`**: Ledger logging query audits (user, text query, language, generated reply, PDF hash).
-
-### 2. Analytical Database Views (OLAP - BigQuery)
-*   **`district_crime_tats`**: Measures Average Turnaround Time (TAT) in closing cases across districts.
-*   **`recidivism_risk_indices`**: Aggregate indices correlating crime types with historical recidivism rates.
-*   **`hotspot_anomaly_alerts`**: Tracks sudden weekly increases in crime volume per police station jurisdiction.
-
----
-
-## Directory Structure
+## Directory structure
 
 ```
 Vyuha-Network/
-├── README.md                  # Project overview and run instructions
-├── .gitignore                 # File exclusion list
-├── docker-compose.yml         # Container configuration
-├── backend/                   # FastAPI Python Backend
+├── README.md
+├── DEPLOYMENT.md              # Zoho Catalyst deploy guide (verified)
+├── catalyst.json             # client + appsail + functions
+├── docs/
+│   ├── fir-schema.md         # official FIR ER schema (implemented)
+│   ├── zoho-catalyst-research.md
+│   └── screenshots/
+├── client/                   # Web Client Hosting (built SPA + client-package.json)
+├── functions/
+│   └── catalyst-zia-services/  # Zia OCR CodeLib (Catalyst Function)
+├── scripts/build-client.sh   # build frontend → client/
+├── backend/                  # FastAPI (AppSail, Docker)
+│   ├── Dockerfile
+│   ├── catalyst_server.py    # entrypoint; binds X_ZOHO_CATALYST_LISTEN_PORT
 │   ├── app/
-│   │   ├── main.py            # API boot and seeding route
-│   │   ├── core/              # Config settings and security
-│   │   ├── db/                # SQLAlchemy session models
-│   │   ├── api/               # Router endpoints (analytics, network, chat)
-│   │   └── services/          # Pure AI and graph business logic
-│   └── tests/                 # Integration test suites
-└── frontend/                  # Vite + React + TypeScript Frontend
-    ├── index.html             # Entry HTML frame
+│   │   ├── main.py           # app, CORS, metrics middleware, startup seed
+│   │   ├── db/models.py      # full FIR schema (SQLAlchemy)
+│   │   ├── api/              # auth, analytics, network, chat, intel, admin
+│   │   ├── services/         # ai_service, catalyst_ai, offender_analytics,
+│   │   │                     #   network_service, observability, pdf_service
+│   │   └── scripts/seed_data.py
+│   └── requirements.txt
+└── frontend/                 # Vite + React + TypeScript
     └── src/
-        ├── App.tsx            # Routes and layout wrapper
-        ├── styles/            # Vanilla CSS styling files
-        ├── components/        # GeospatialMap, NetworkVisualizer, ChatBot
-        └── context/           # Auth and session context
+        ├── App.tsx           # routes (incl. self-gated /admin)
+        ├── context/          # Auth, Theme, Language (EN/ಕನ್ನಡ)
+        ├── lib/i18n.ts       # bilingual UI strings
+        ├── components/       # ui/, layout/, charts/
+        └── features/         # dashboard, map, network, analytics,
+                              #   offenders, assistant, admin, auth
 ```
 
 ---
 
-## Running the Platform Local Setup
+## Local setup
 
-### 1. Python Environment Setup (Python 3.14)
-Ensure you have Python 3.14 installed on your system. Run these commands from the repository root:
+### Backend (Python 3.12)
+
 ```bash
-# Create virtual environment
-python3.14 -m venv venv
-source venv/bin/activate
+python3 -m venv backend/.venv
+backend/.venv/bin/pip install -r backend/requirements.txt
 
-# Install dependencies
-pip install -r backend/requirements.txt
+# seed the local SQLite DB (idempotent)
+cd backend && ../backend/.venv/bin/python -m app.scripts.seed_data
 
-# Run SQLite migrations & seed database
-PYTHONPATH=backend ./venv/bin/python3 backend/app/scripts/seed_data.py
-
-# Start the FastAPI development server
-PYTHONPATH=backend ./venv/bin/uvicorn app.main:app --reload --port 8000
+# run the API
+.venv/bin/uvicorn app.main:app --reload --port 8000
 ```
-*Note: Configured to fall back to a local SQLite database (`sqlite:///./vyuha_crime.db`) if no PostgreSQL host is found. Add your `GEMINI_API_KEY` to the `.env` file at the root to enable AI operations.*
 
-### 2. Frontend React Setup
+Zero-config: falls back to `sqlite:///./vyuha_crime.db` and the heuristic mock AI.
+To enable real AI locally, export `FALLBACK_AI_API_KEYS` (a free Groq key) or
+`CATALYST_AI_TOKEN`; for Postgres, set `DATABASE_URL`.
+
+### Frontend
+
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev            # http://localhost:5173 (proxies /api → :8000)
 ```
 
 ---
 
-## Quality Control & Verification Commands
+## Deploying to Zoho Catalyst
 
-### 1. Python Backend Quality Checks
-Run inside the `backend/` directory:
-*   **Verification tests**: `pytest`
-*   **Code format checks**: `black --check app/ tests/`
-*   **Style lint checks**: `flake8 app/ tests/`
-*   **Static type verification**: `mypy app/`
+Full, verified walkthrough in **[DEPLOYMENT.md](DEPLOYMENT.md)**. In short:
 
-### 2. Frontend TS/React Quality Checks
-Run inside the `frontend/` directory:
-*   **TypeScript typecheck validation**: `npm run typecheck`
-*   **Style and code linting**: `npm run lint`
+```bash
+npm install -g zcatalyst-cli && catalyst login && catalyst init
+
+# backend → AppSail (Docker)
+cd backend && docker build --platform linux/amd64 -t vyuha-api:latest -t localhost/vyuha-api:latest . && cd ..
+catalyst appsail:add --name vyuha-api --source "docker://localhost/vyuha-api:latest"
+catalyst deploy --only appsail
+
+# Zia OCR CodeLib (Catalyst Function)
+catalyst codelib:install https://github.com/catalystbyzoho/codelib-zia-services
+catalyst deploy --only functions
+
+# frontend → Web Client Hosting (served under /app)
+printf 'VITE_API_BASE_URL=<AppSail URL>\nVITE_CATALYST_AI=true\n' > frontend/.env.production
+./scripts/build-client.sh && catalyst deploy --only client
+```
+
+Set runtime config (AI/OCR keys, `DATABASE_URL`) in **`/admin` → Environment** or
+the Catalyst console — secrets are never committed or baked into the image.
+
+---
+
+## Quality checks
+
+- **Frontend:** `npm run typecheck` · `npm run lint` · `npm run build` (in `frontend/`)
+- **Backend:** `pytest` · `black --check app/` · `flake8 app/` · `mypy app/` (in `backend/`)

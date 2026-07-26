@@ -1,0 +1,18 @@
+{
+  "client": {
+    "source": "client"
+  },
+  "appsail": [
+    {
+      "source": "docker://localhost/vyuha-api:latest",
+      "name": "vyuha-api"
+    }
+  ],
+  "functions": {
+    "targets": [
+      "catalyst-zia-services"
+    ],
+    "ignore": [],
+    "source": "functions"
+  }
+}

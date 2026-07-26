@@ -1,0 +1,101 @@
+import { AlertTriangle, Lock, User as UserIcon } from 'lucide-react';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { useI18n } from '../../context/LanguageContext';
+import { LangToggle } from '../../components/ui/LangToggle';
+import { Spinner } from '../../components/ui/states';
+import kspSeal from '../../assets/karnataka-seal.svg';
+
+export function LoginPage() {
+  const { login } = useAuth();
+  const { t } = useI18n();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      await login(username.trim(), password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="login-screen">
+      <form className="card login-card fade-in" onSubmit={handleSubmit}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <LangToggle />
+        </div>
+        <div>
+          <div className="login-card__mark login-card__mark--seal">
+            <img src={kspSeal} alt="Karnataka State Police" />
+          </div>
+          <h1 className="login-card__title" style={{ marginTop: 14 }}>
+            {t('login.title')}
+          </h1>
+          <p className="login-card__subtitle">{t('login.subtitle')}</p>
+        </div>
+
+        {error && (
+          <div className="alert-banner alert-banner--error" role="alert">
+            <AlertTriangle size={15} style={{ flex: 'none', marginTop: 1 }} />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <div className="field">
+          <label className="field__label" htmlFor="login-username">
+            {t('login.username')}
+          </label>
+          <div className="input-wrap">
+            <UserIcon size={14} />
+            <input
+              id="login-username"
+              className="input"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="e.g. officer"
+              autoComplete="username"
+              required
+              autoFocus
+            />
+          </div>
+        </div>
+
+        <div className="field">
+          <label className="field__label" htmlFor="login-password">
+            {t('login.password')}
+          </label>
+          <div className="input-wrap">
+            <Lock size={14} />
+            <input
+              id="login-password"
+              type="password"
+              className="input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
+              required
+            />
+          </div>
+        </div>
+
+        <button className="btn btn--primary" type="submit" disabled={submitting} style={{ width: '100%' }}>
+          {submitting ? <Spinner /> : t('login.signIn')}
+        </button>
+
+        <p className="login-card__footnote">{t('login.footnote')}</p>
+      </form>
+    </div>
+  );
+}

@@ -1,0 +1,11 @@
+{
+  "command": "python3 -u catalyst_server.py",
+  "stack": "python312",
+  "memory": 512,
+  "env_variables": {
+    "DISABLE_APP_CORS": "true",
+    "MOCK_AI_PIPELINE": "true",
+    "CATALYST_AI_ENABLED": "false",
+    "AUTO_SEED": "true"
+  }
+}

@@ -1,0 +1,145 @@
+/* ---------------------------------------------------------------------------
+ * Design tokens — single source of truth for both themes.
+ *
+ * The categorical series palette, sequential ramp, status palette, surfaces
+ * and ink colors are a validated set (colorblind-safe adjacent pairs in both
+ * modes). Series colors are assigned to crime categories in a FIXED order in
+ * lib/categories.ts — never re-ordered or cycled.
+ * ------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --bg-page: #f9f9f7;
+  --bg-surface: #fcfcfb;
+  --bg-inset: #f0efec;
+  --bg-hover: rgba(11, 11, 11, 0.04);
+  --bg-active: rgba(11, 11, 11, 0.07);
+  --bg-overlay: rgba(249, 249, 247, 0.82);
+  --bg-scrim: rgba(11, 11, 11, 0.36);
+
+  /* Ink */
+  --text-1: #0b0b0b;
+  --text-2: #52514e;
+  --text-3: #898781;
+  --text-inverse: #ffffff;
+
+  /* Lines */
+  --border: rgba(11, 11, 11, 0.1);
+  --border-strong: rgba(11, 11, 11, 0.18);
+  --grid-line: #e1e0d9;
+  --axis-line: #c3c2b7;
+
+  /* Accent (interactive) */
+  --accent: #2a78d6;
+  --accent-strong: #1c5cab;
+  --accent-soft: rgba(42, 120, 214, 0.11);
+  --accent-ring: rgba(42, 120, 214, 0.38);
+
+  /* Categorical series (fixed order, validated) */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+
+  /* Sequential ramp (blue, light -> dark) for magnitude encodings */
+  --seq-100: #cde2fb;
+  --seq-200: #9ec5f4;
+  --seq-300: #6da7ec;
+  --seq-400: #3987e5;
+  --seq-500: #256abf;
+  --seq-600: #184f95;
+  --seq-700: #0d366b;
+
+  /* Status (reserved — never used as series colors) */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+  --status-good-soft: rgba(12, 163, 12, 0.12);
+  --status-warning-soft: rgba(250, 178, 25, 0.16);
+  --status-serious-soft: rgba(236, 131, 90, 0.14);
+  --status-critical-soft: rgba(208, 59, 59, 0.12);
+  --delta-good-text: #006300;
+
+  /* Elevation */
+  --shadow-1: 0 1px 2px rgba(11, 11, 11, 0.05), 0 1px 1px rgba(11, 11, 11, 0.03);
+  --shadow-2: 0 2px 6px rgba(11, 11, 11, 0.07), 0 1px 2px rgba(11, 11, 11, 0.05);
+  --shadow-3: 0 12px 32px rgba(11, 11, 11, 0.14), 0 2px 8px rgba(11, 11, 11, 0.08);
+
+  /* Shape & type */
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 14px;
+  --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur-med: 220ms;
+
+  /* Layout */
+  --sidebar-width: 232px;
+  --topbar-height: 56px;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg-page: #0d0d0d;
+  --bg-surface: #1a1a19;
+  --bg-inset: #232322;
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-active: rgba(255, 255, 255, 0.09);
+  --bg-overlay: rgba(13, 13, 13, 0.82);
+  --bg-scrim: rgba(0, 0, 0, 0.55);
+
+  --text-1: #ffffff;
+  --text-2: #c3c2b7;
+  --text-3: #898781;
+  --text-inverse: #0b0b0b;
+
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --grid-line: #2c2c2a;
+  --axis-line: #383835;
+
+  --accent: #3987e5;
+  --accent-strong: #6da7ec;
+  --accent-soft: rgba(57, 135, 229, 0.16);
+  --accent-ring: rgba(57, 135, 229, 0.45);
+
+  /* Same eight hues, stepped for the dark surface */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+
+  --status-good-soft: rgba(12, 163, 12, 0.18);
+  --status-warning-soft: rgba(250, 178, 25, 0.14);
+  --status-serious-soft: rgba(236, 131, 90, 0.16);
+  --status-critical-soft: rgba(208, 59, 59, 0.2);
+  --delta-good-text: #0ca30c;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 16px 40px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Flip themes without per-element transition staggering. */
+:root.theme-switching *,
+:root.theme-switching *::before,
+:root.theme-switching *::after {
+  transition: none !important;
+}
