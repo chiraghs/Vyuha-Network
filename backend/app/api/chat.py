@@ -46,17 +46,23 @@ def post_chat_query(
     detected_lang = translation_result["detected_language"]
     translated_text = translation_result["translated_query"]
 
-    # 3. Fetch recent crime records from database to provide as context to Gemini
-    crimes = db.query(models.CrimeRecord).order_by(models.CrimeRecord.occurrence_time.desc()).limit(50).all()
+    # 3. Fetch recent FIR cases from the database to provide as context to the LLM.
+    cases = (
+        db.query(models.CaseMaster)
+        .order_by(models.CaseMaster.CrimeRegisteredDate.desc())
+        .limit(50)
+        .all()
+    )
     historical_data = []
-    for c in crimes:
+    for c in cases:
         historical_data.append({
-            "FIR": c.FIR_number,
-            "station": c.station.name,
-            "district": c.station.district.name,
-            "category": c.crime_category,
-            "date": c.occurrence_time.strftime("%Y-%m-%d"),
-            "description": c.description
+            "FIR": c.CrimeNo,
+            "station": c.unit.UnitName if c.unit else None,
+            "district": c.unit.district.DistrictName if c.unit and c.unit.district else None,
+            "category": c.minor_head.CrimeHeadName if c.minor_head else None,
+            "gravity": c.gravity.LookupValue if c.gravity else None,
+            "date": c.CrimeRegisteredDate.strftime("%Y-%m-%d") if c.CrimeRegisteredDate else None,
+            "description": c.BriefFacts,
         })
 
     # 4. Invoke LLM pattern analyzer

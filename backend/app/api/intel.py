@@ -74,12 +74,16 @@ async def face_search(
         return {"available": False, "matches": []}
 
     probe = await file.read()
-    criminals = db.query(models.Criminal).all()
+    # Offenders are identity-resolved from accused records (person_key), matching
+    # the rest of the app; booking photos are enrolled in Stratus by person_key.
+    from app.services import offender_analytics as oa
+
+    aggs = oa.aggregate_offenders(db)
 
     matches = []
     scanned = 0
-    for criminal in criminals:
-        candidate = catalyst_ai.load_photo(f"offenders/{criminal.id}.jpg")
+    for key, agg in aggs.items():
+        candidate = catalyst_ai.load_photo(f"offenders/{key}.jpg")
         if not candidate:
             continue
         scanned += 1
@@ -88,11 +92,11 @@ async def face_search(
             continue
         matches.append(
             {
-                "id": criminal.id,
-                "name": criminal.name,
-                "alias": criminal.alias,
-                "status": criminal.status,
-                "risk_score": criminal.risk_score,
+                "id": key,
+                "name": agg.name,
+                "alias": agg.alias,
+                "status": oa.status_of(agg),
+                "risk_score": oa.risk_score(agg),
                 "confidence": comparison["confidence"],
                 "matched": comparison["matched"],
             }

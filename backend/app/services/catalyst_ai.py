@@ -11,7 +11,23 @@ from __future__ import annotations
 
 import io
 import os
-from typing import Any, Dict, List, Optional
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+from typing import Any, Callable, Dict, List, Optional
+
+# Zia SDK calls are blocking network calls. If the SDK is misconfigured (e.g.
+# missing project credentials on AppSail) they can hang, which would stall the
+# request that triggered them. Every call is therefore run with a hard timeout
+# so a broken Zia degrades to the local fallback fast instead of hanging.
+_ZIA_TIMEOUT_S = float(os.getenv("ZIA_TIMEOUT_SECONDS", "8"))
+_executor = ThreadPoolExecutor(max_workers=4)
+
+
+def _guarded(fn: Callable[[], Any]) -> Optional[Any]:
+    try:
+        return _executor.submit(fn).result(timeout=_ZIA_TIMEOUT_S)
+    except (FutureTimeout, Exception) as exc:  # noqa: BLE001 — degrade gracefully
+        print(f"[catalyst_ai] call failed/timed out: {exc}")
+        return None
 
 
 def is_enabled() -> bool:
@@ -42,25 +58,22 @@ def analyze_text(text: str, keywords: Optional[List[str]] = None) -> Optional[Di
     """
     if not is_enabled() or not text.strip():
         return None
-    try:
+
+    def _run() -> Optional[Dict[str, Any]]:
         zia = _catalyst_app().zia()
         snippet = text.strip()[:1500]  # Zia sentiment caps at 1500 chars
         result: Dict[str, Any] = {}
-
         sentiment = zia.get_sentiment_analysis([snippet], keywords or [])
         doc = _first(sentiment)
         if doc:
             result["sentiment"] = doc.get("document_sentiment") or doc.get("sentiment")
             result["score"] = doc.get("overall_score")
-
         extracted = _extract_keywords(zia, snippet)
         if extracted:
             result["keywords"] = extracted
-
         return result or None
-    except Exception as exc:
-        print(f"[catalyst_ai] analyze_text failed: {exc}")
-        return None
+
+    return _guarded(_run)
 
 
 def _extract_keywords(zia, text: str) -> Optional[List[str]]:
@@ -86,15 +99,15 @@ def extract_text(image_bytes: bytes, language: str = "eng") -> Optional[Dict[str
     """Run Zia OCR over an uploaded document image. Returns {text, confidence}."""
     if not is_enabled():
         return None
-    try:
+
+    def _run() -> Optional[Dict[str, Any]]:
         zia = _catalyst_app().zia()
         res = zia.extract_optical_characters(
             io.BytesIO(image_bytes), {"language": language, "modelType": "OCR"}
         )
         return {"text": res.get("text", ""), "confidence": res.get("confidence")}
-    except Exception as exc:
-        print(f"[catalyst_ai] extract_text failed: {exc}")
-        return None
+
+    return _guarded(_run)
 
 
 # --------------------------------------------------------------------------- #
@@ -107,15 +120,15 @@ def compare_faces(probe: bytes, candidate: bytes) -> Optional[Dict[str, Any]]:
     """
     if not is_enabled():
         return None
-    try:
+
+    def _run() -> Optional[Dict[str, Any]]:
         zia = _catalyst_app().zia()
         res = zia.compare_face(io.BytesIO(probe), io.BytesIO(candidate))
         confidence = float(res.get("confidence", 0) or 0)
         matched = str(res.get("matched", "")).lower() == "true" or confidence > 0.5
         return {"matched": matched, "confidence": confidence}
-    except Exception as exc:
-        print(f"[catalyst_ai] compare_faces failed: {exc}")
-        return None
+
+    return _guarded(_run)
 
 
 # --------------------------------------------------------------------------- #
