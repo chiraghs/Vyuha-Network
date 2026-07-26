@@ -105,34 +105,65 @@ Catalyst AI (Zia OCR, GLM chat) wired in.
 
 ```mermaid
 flowchart TD
-    subgraph Client["Web Client Hosting (Catalyst)"]
-        SPA["React + Vite SPA (/app) · EN/ಕನ್ನಡ"]
-    end
-    subgraph AppSail["AppSail (Docker · FastAPI)"]
-        API["FastAPI · JWT auth · paginated + SQL-aggregated API"]
-        OBS["Observability (metrics + log buffer) → /admin"]
-    end
-    subgraph Fn["Catalyst Functions"]
-        ZIA["catalyst-zia-services (Zia OCR CodeLib)"]
-    end
-    subgraph AI["AI chain (primary → fallback)"]
-        GLM["Catalyst QuickML GLM"]
-        GROQ["Groq (open Llama models)"]
-        MOCK["Heuristic mock"]
-    end
-    subgraph DB["Data"]
-        PG[("PostgreSQL (DATABASE_URL)")]
-        SQLITE[("SQLite (local/dev default)")]
+    %% Custom Styling
+    classDef client fill:#0F172A,stroke:#3B82F6,stroke-width:2px,color:#F3F4F6;
+    classDef infra fill:#1E293B,stroke:#9CA3AF,stroke-width:1px,color:#F3F4F6;
+    classDef logic fill:#0B0F19,stroke:#FBBF24,stroke-width:2px,color:#F3F4F6;
+    classDef data fill:#030712,stroke:#10B981,stroke-width:2px,color:#F3F4F6;
+
+    subgraph ClientLayer["1. Edge & Client Access"]
+        CDN_STATIC["Zoho CDN / Static Hosting"]
+        SPA["React + Vite Client (EN / ಕನ್ನಡ)"]
+        CDN_ASSETS["CDN (Large File Assets / PDFs)"]
     end
 
-    SPA -->|/api · CORS| API
-    API --> OBS
-    API -->|document OCR| ZIA
-    API -->|chat / risk / translate| GLM
-    GLM -->|on failure| GROQ
-    GROQ -->|on failure| MOCK
-    API --> PG
-    API --> SQLITE
+    subgraph IngressLayer["2. Security & Load Balancing"]
+        LB["Nginx Load Balancer"]
+        AUTH["JWT Authenticator & RBAC Role Guard"]
+    end
+
+    subgraph LogicLayer["3. Stateless AppSail Cluster"]
+        API_POOL["Stateless FastAPI AppSail Node Pool"]
+        REDIS[("Redis Query & Cache Store")]
+        ZIA["Zoho Zia OCR (Text Ingestion)"]
+    end
+
+    subgraph AI["4. AI Chain (Primary & Fallback)"]
+        GLM["Catalyst QuickML GLM"]
+        GROQ["Groq (open Llama models)"]
+    end
+
+    subgraph DatabaseLayer["5. Analytics Data Warehouse (Analytics DW)"]
+        PG[("PostgreSQL Transaction Database (OLTP)")]
+        BQ[("Analytics DW")]
+    end
+
+    %% Routing Flow
+    CDN_STATIC --> SPA
+    SPA -->|HTTPS Queries| LB
+    LB --> AUTH
+    AUTH -->|Validated JWT Roles| API_POOL
+    
+    %% Cache & Storage
+    API_POOL <-->|Cache Hits/Misses| REDIS
+    API_POOL -->|Store Large Documents| CDN_ASSETS
+    
+    %% Ingestion / OCR
+    API_POOL -->|OCR Requests| ZIA
+    ZIA --> API_POOL
+
+    %% AI Integrations
+    API_POOL --> GLM
+    GLM -->|On Failure Fallback| GROQ
+
+    %% Data Syncing
+    API_POOL --> PG
+    PG <-->|Federated External Query| BQ
+
+    class SPA,CDN_STATIC,CDN_ASSETS client;
+    class LB,AUTH infra;
+    class API_POOL,REDIS,ZIA logic;
+    class PG,BQ,GLM,GROQ data;
 ```
 
 ---
@@ -160,7 +191,7 @@ flowchart TD
         STT["Zia STT / Audio Transcriber"]
         TRANS["Bilingual Translation Bridge"]
         EXTR["pypdf Text Extractor"]
-        AI_QUERY["AI Chain (GLM/Groq/Gemini)"]
+        AI_QUERY["AI Chain (Zoho Catalyst GLM / Groq / Gemini)"]
         DB_QUERY["Analytics DW"]
     end
 
