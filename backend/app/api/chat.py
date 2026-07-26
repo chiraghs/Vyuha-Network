@@ -65,24 +65,23 @@ def post_chat_query(
             "description": c.BriefFacts,
         })
 
-    # 4. Invoke LLM pattern analyzer
-    ai_response = ai_service.analyze_crime_pattern(translated_text, historical_data)
-    reply_text = ai_response.get("summary", "No summary returned")
-    
-    # If patterns or recommendations are present, append them in a clean readable layout
-    patterns = ai_response.get("detected_patterns", [])
-    recommendations = ai_response.get("recommended_actions", [])
-    
-    formatted_reply = f"{reply_text}\n\n"
-    if patterns:
-        formatted_reply += "<b>Detected Patterns:</b>\n" + "\n".join(f"- {p}" for p in patterns) + "\n\n"
-    if recommendations:
-        formatted_reply += "<b>Police Advisory Action Recommendations:</b>\n" + "\n".join(f"- {r}" for r in recommendations)
+    # 4. Invoke LLM pattern analyzer. Pass the detected language so the model
+    #    responds natively in Kannada when the query was Kannada (no fragile
+    #    English->Kannada back-translation of the assembled reply).
+    ai_response = ai_service.analyze_crime_pattern(translated_text, historical_data, language=detected_lang)
+    summary = ai_response.get("summary", "No summary returned")
+    patterns = ai_response.get("detected_patterns", []) or []
+    recommendations = ai_response.get("recommended_actions", []) or []
+    confidence = ai_response.get("confidence_score")
 
-    # If the user queried in Kannada, translate the response summary back to Kannada for natural interaction
-    if detected_lang == "kn":
-        back_translation = ai_service.translate_kannada_query(formatted_reply)
-        formatted_reply = back_translation["translated_query"]
+    # Flat text kept for the audit ledger, PDF export and history restore.
+    heading_patterns = "ಪತ್ತೆಯಾದ ಮಾದರಿಗಳು" if detected_lang == "kn" else "Detected Patterns"
+    heading_actions = "ಶಿಫಾರಸು ಕ್ರಮಗಳು" if detected_lang == "kn" else "Recommended Actions"
+    formatted_reply = f"{summary}\n\n"
+    if patterns:
+        formatted_reply += f"<b>{heading_patterns}:</b>\n" + "\n".join(f"- {p}" for p in patterns) + "\n\n"
+    if recommendations:
+        formatted_reply += f"<b>{heading_actions}:</b>\n" + "\n".join(f"- {r}" for r in recommendations)
 
     # 5. Calculate audit verification hash
     timestamp = datetime.utcnow()
@@ -114,6 +113,10 @@ def post_chat_query(
         "sentiment": (nlp or {}).get("sentiment"),
         "sentiment_score": (nlp or {}).get("score"),
         "keywords": (nlp or {}).get("keywords"),
+        "summary": summary,
+        "detected_patterns": patterns,
+        "recommended_actions": recommendations,
+        "confidence": confidence,
     }
 
 @router.get("/history")

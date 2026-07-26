@@ -1,12 +1,13 @@
-import { Share2, Sparkles, X } from 'lucide-react';
+import { Share2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { ChatAPI, NetworkAPI } from '../../api/endpoints';
 import { Badge } from '../../components/ui/Badge';
+import { AiAnswer } from '../../components/ui/AiAnswer';
 import { CenteredLoader, EmptyState, ErrorState, Skeleton } from '../../components/ui/states';
 import { useApi } from '../../hooks/useApi';
 import { RISK_LABEL, riskColorVar, riskLevel } from '../../lib/risk';
 import { formatNumber, titleCase } from '../../lib/format';
-import type { NetworkNode } from '../../types';
+import type { AiAnswerData, NetworkNode } from '../../types';
 import { ForceGraph } from './ForceGraph';
 
 const RISK_LEGEND = [
@@ -19,10 +20,10 @@ const RISK_LEGEND = [
 export function NetworkPage() {
   const graphState = useApi(() => NetworkAPI.graph(), []);
   const [selected, setSelected] = useState<NetworkNode | null>(null);
-  const [assessment, setAssessment] = useState<string | null>(null);
+  const [assessment, setAssessment] = useState<AiAnswerData | null>(null);
   const [assessing, setAssessing] = useState(false);
 
-  // Explainable-AI risk narrative for the selected suspect.
+  // Explainable-AI risk narrative for the selected suspect (structured).
   useEffect(() => {
     if (!selected) {
       setAssessment(null);
@@ -38,13 +39,20 @@ export function NetworkPage() {
         `${selected.connections} known network links.`,
     )
       .then((reply) => {
-        if (!cancelled) setAssessment(reply.reply_text.replace(/<\/?b>/g, ''));
+        if (!cancelled)
+          setAssessment({
+            summary: reply.summary ?? reply.reply_text.replace(/<\/?b>/g, ''),
+            detected_patterns: reply.detected_patterns,
+            recommended_actions: reply.recommended_actions,
+            confidence: reply.confidence,
+          });
       })
       .catch(() => {
         if (!cancelled) {
-          setAssessment(
-            'AI assessment unavailable. Standard recidivism protocol applies — keep the suspect on the active watch list.',
-          );
+          setAssessment({
+            summary:
+              'AI assessment unavailable. Standard recidivism protocol applies — keep the suspect on the active watch list.',
+          });
         }
       })
       .finally(() => {
@@ -201,22 +209,6 @@ export function NetworkPage() {
               </dl>
 
               <div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    color: 'var(--text-3)',
-                    marginBottom: 8,
-                  }}
-                >
-                  <Sparkles size={13} />
-                  AI risk assessment
-                </div>
                 {assessing ? (
                   <div style={{ display: 'grid', gap: 8 }}>
                     <Skeleton height={12} />
@@ -224,9 +216,7 @@ export function NetworkPage() {
                     <Skeleton height={12} width="70%" />
                   </div>
                 ) : (
-                  <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-2)', whiteSpace: 'pre-wrap' }}>
-                    {assessment}
-                  </p>
+                  assessment && <AiAnswer data={assessment} compact />
                 )}
               </div>
 

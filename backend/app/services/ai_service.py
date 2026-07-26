@@ -25,14 +25,25 @@ def _extract_json(text: str) -> dict:
 def _strip_think(text: str) -> str:
     return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
+
+# Appended to prompts when the investigator asked in Kannada, so the model
+# responds natively in Kannada (JSON keys stay English for parsing).
+_KANNADA_JSON = (
+    " IMPORTANT: Write ALL string VALUES (summary, detected_patterns, "
+    "recommended_actions, audit_explanation) in Kannada (ಕನ್ನಡ script). "
+    "Keep the JSON keys in English."
+)
+_KANNADA_TEXT = " IMPORTANT: Write the entire response in Kannada (ಕನ್ನಡ script)."
+
 class GeminiAIService(BaseAIService):
     def __init__(self, api_key: str):
         genai.configure(api_key=api_key)
 
-    def analyze_crime_pattern(self, query_text: str, historical_records: list) -> dict:
+    def analyze_crime_pattern(self, query_text: str, historical_records: list, language: str = "en") -> dict:
         try:
             model = genai.GenerativeModel("gemini-1.5-flash")
             records_summary = json.dumps(historical_records[:30], default=str)
+            lang_note = _KANNADA_JSON if language == "kn" else ""
             prompt = f"""
             You are a lead crime analyst for the Karnataka State Police.
             Analyze the following investigator query and relevant database crime records.
@@ -46,6 +57,7 @@ class GeminiAIService(BaseAIService):
 
             Investigator Query: {query_text}
             Crime Records: {records_summary}
+            {lang_note}
             """
             response = model.generate_content(prompt)
             text = response.text.strip()
@@ -116,7 +128,23 @@ class GeminiAIService(BaseAIService):
 
 
 class MockAIService(BaseAIService):
-    def analyze_crime_pattern(self, query_text: str, historical_records: list) -> dict:
+    def analyze_crime_pattern(self, query_text: str, historical_records: list, language: str = "en") -> dict:
+        if language == "kn":
+            return {
+                "summary": "ಇತ್ತೀಚಿನ ಎಫ್‌ಐಆರ್ ದಾಖಲೆಗಳ ವಿಶ್ಲೇಷಣೆ (ಡೆಮೊ ಪ್ರತಿಕ್ರಿಯೆ).",
+                "detected_patterns": [
+                    "ಬೆಂಗಳೂರಿನಲ್ಲಿ ರಾತ್ರಿ ವೇಳೆ ಸೈಬರ್ ಅಪರಾಧ ಪ್ರಕರಣಗಳಲ್ಲಿ ಸ್ವಲ್ಪ ಏರಿಕೆ.",
+                    "ಹುಬ್ಬಳ್ಳಿ ಮತ್ತು ಬೆಳಗಾವಿಯಲ್ಲಿ ಸಂಭಾವ್ಯ ಮಾದಕವಸ್ತು ಜಾಲ.",
+                    "ಕಲಬುರಗಿಯಲ್ಲಿ ನಿರುದ್ಯೋಗದೊಂದಿಗೆ ಕಳ್ಳತನದ ಸಂಬಂಧ.",
+                ],
+                "confidence_score": 0.85,
+                "recommended_actions": [
+                    "ಬೆಂಗಳೂರು ನಗರ ವಲಯಗಳಲ್ಲಿ ರಾತ್ರಿ 10ರಿಂದ 3ರವರೆಗೆ ಗಸ್ತು ಹೆಚ್ಚಿಸಿ.",
+                    "ಪುನರಪರಾಧಿಗಳ ಜಾಲವನ್ನು ಪರಿಶೀಲಿಸಿ.",
+                    "ಹೆಚ್ಚಿನ ನಿರುದ್ಯೋಗ ವಲಯಗಳಲ್ಲಿ ಕೌಶಲ್ಯ ತರಬೇತಿ ಕಾರ್ಯಕ್ರಮ.",
+                ],
+                "audit_explanation": "90 ದಾಖಲೆಗಳ ವಿಶ್ಲೇಷಣೆ; 3 ಪ್ರಮುಖ ಅಸಂಗತತೆಗಳು ಪತ್ತೆ.",
+            }
         return {
             "summary": f"Mock AI Analysis for query: '{query_text}'",
             "detected_patterns": [
@@ -219,7 +247,7 @@ class LLMAIService(BaseAIService):
                 continue
         raise last_err
 
-    def analyze_crime_pattern(self, query_text: str, historical_records: list) -> dict:
+    def analyze_crime_pattern(self, query_text: str, historical_records: list, language: str = "en") -> dict:
         try:
             records = json.dumps(historical_records[:30], default=str)
             system = (
@@ -231,6 +259,7 @@ class LLMAIService(BaseAIService):
                 "summary (string), detected_patterns (array of strings), confidence_score (number 0-1), "
                 "recommended_actions (array of strings), audit_explanation (string). "
                 f"Investigator query: {query_text}\nFIR records: {records}"
+                + (_KANNADA_JSON if language == "kn" else "")
             )
             start = time.perf_counter()
             result = json.loads(self._chat(system, user, json_mode=True, max_tokens=1100))
@@ -239,7 +268,7 @@ class LLMAIService(BaseAIService):
         except Exception as exc:  # noqa: BLE001 — graceful degrade
             metrics.record_ai(False, error=exc)
             print(f"[LLMAIService] analyze_crime_pattern fell back: {exc}")
-            return MockAIService().analyze_crime_pattern(query_text, historical_records)
+            return MockAIService().analyze_crime_pattern(query_text, historical_records, language)
 
     def calculate_risk_score_explanation(self, criminal_name: str, priors_count: int, crime_types: list) -> str:
         try:
@@ -336,7 +365,7 @@ class CatalystGLMService(BaseAIService):
         resp.raise_for_status()
         return resp.json()["choices"][0]["message"]["content"].strip()
 
-    def analyze_crime_pattern(self, query_text: str, historical_records: list) -> dict:
+    def analyze_crime_pattern(self, query_text: str, historical_records: list, language: str = "en") -> dict:
         try:
             records = json.dumps(historical_records[:30], default=str)
             system = (
@@ -348,6 +377,7 @@ class CatalystGLMService(BaseAIService):
                 "summary (string), detected_patterns (array of strings), confidence_score (number 0-1), "
                 "recommended_actions (array of strings), audit_explanation (string). "
                 f"Investigator query: {query_text}\nFIR records: {records}"
+                + (_KANNADA_JSON if language == "kn" else "")
             )
             start = time.perf_counter()
             result = _extract_json(self._chat(system, user, 1100))
@@ -355,7 +385,7 @@ class CatalystGLMService(BaseAIService):
             return result
         except Exception as exc:  # noqa: BLE001
             print(f"[CatalystGLM] analyze_crime_pattern fell back: {exc}")
-            return self.fallback.analyze_crime_pattern(query_text, historical_records)
+            return self.fallback.analyze_crime_pattern(query_text, historical_records, language)
 
     def calculate_risk_score_explanation(self, criminal_name: str, priors_count: int, crime_types: list) -> str:
         try:

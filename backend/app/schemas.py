@@ -151,3 +151,9 @@ class ChatReply(BaseModel):
     sentiment: Optional[str] = None
     sentiment_score: Optional[float] = None
     keywords: Optional[List[str]] = None
+    # Structured AI answer for styled rendering (reply_text stays the flat
+    # version used by the audit history and PDF export).
+    summary: Optional[str] = None
+    detected_patterns: Optional[List[str]] = None
+    recommended_actions: Optional[List[str]] = None
+    confidence: Optional[float] = None

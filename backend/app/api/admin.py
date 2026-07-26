@@ -14,6 +14,7 @@ import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
 from app.api.deps import RoleChecker
@@ -116,6 +117,47 @@ def set_config(payload: EnvUpdate, current_user: models.User = Depends(require_a
 def delete_config(key: str, current_user: models.User = Depends(require_admin)):
     existed = os.environ.pop(key, None) is not None
     return {"ok": True, "removed": existed}
+
+
+@router.get("/config/export", response_class=PlainTextResponse)
+def export_config(current_user: models.User = Depends(require_admin)):
+    """Download the currently-set known config keys as a .env file (real
+    values — admin only, so you can save and re-import them)."""
+    lines = ["# Vyuha Network runtime config export"]
+    for k in KNOWN_KEYS:
+        v = os.getenv(k)
+        if v is not None:
+            lines.append(f"{k}={v}")
+    body = "\n".join(lines) + "\n"
+    return PlainTextResponse(
+        body, headers={"Content-Disposition": "attachment; filename=vyuha.env"}
+    )
+
+
+class ImportBody(BaseModel):
+    content: str
+
+
+@router.post("/config/import")
+def import_config(payload: ImportBody, current_user: models.User = Depends(require_admin)):
+    """Set multiple env vars from an uploaded .env-style file (KEY=VALUE lines;
+    # comments and blank lines ignored). Applies at runtime like the editor."""
+    applied = []
+    needs_restart = []
+    for raw in payload.content.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = key.strip()
+        val = val.strip().strip('"').strip("'")
+        if not key:
+            continue
+        os.environ[key] = val
+        applied.append(key)
+        if key in RESTART_KEYS:
+            needs_restart.append(key)
+    return {"ok": True, "count": len(applied), "applied": applied, "needs_restart": needs_restart}
 
 
 @router.get("/logs")

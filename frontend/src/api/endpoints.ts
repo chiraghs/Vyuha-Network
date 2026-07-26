@@ -155,6 +155,15 @@ export const AdminAPI = {
   logs: (limit = 200) =>
     api.get<{ logs: AdminLogLine[] }>('/admin/logs', { params: { limit } }).then((r) => r.data),
   metrics: () => api.get<AdminMetrics>('/admin/metrics').then((r) => r.data),
+  exportConfig: () =>
+    api.get<string>('/admin/config/export', { responseType: 'text' }).then((r) => r.data),
+  importConfig: (content: string) =>
+    api
+      .post<{ ok: boolean; count: number; applied: string[]; needs_restart: string[] }>(
+        '/admin/config/import',
+        { content },
+      )
+      .then((r) => r.data),
 };
 
 export const ChatAPI = {

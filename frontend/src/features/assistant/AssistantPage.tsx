@@ -13,6 +13,7 @@ import type { KeyboardEvent } from 'react';
 import { ChatAPI, IntelAPI } from '../../api/endpoints';
 import { CATALYST_AI, extractErrorMessage } from '../../api/client';
 import { Badge } from '../../components/ui/Badge';
+import { AiAnswer, hasStructuredAnswer } from '../../components/ui/AiAnswer';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/states';
 import { formatDateTime } from '../../lib/format';
@@ -140,6 +141,10 @@ export function AssistantPage() {
           hash: reply.verification_hash,
           sentiment: reply.sentiment,
           keywords: reply.keywords,
+          summary: reply.summary,
+          detected_patterns: reply.detected_patterns,
+          recommended_actions: reply.recommended_actions,
+          confidence: reply.confidence,
         },
       ]);
       setHistoryCount((count) => (count === null ? count : count + 1));
@@ -213,7 +218,10 @@ export function AssistantPage() {
               message="Query the crime records database in English or Kannada — patterns, hotspots, advisories and case summaries. Every exchange is hash-verified and audited."
             />
           ) : (
-            messages.map((message) => (
+            messages.map((message) => {
+              const structured =
+                message.sender === 'assistant' && !message.error && hasStructuredAnswer(message);
+              return (
               <div
                 key={message.id}
                 className={`chat-msg chat-msg--${message.sender} fade-in`}
@@ -222,7 +230,7 @@ export function AssistantPage() {
                   className="chat-msg__bubble"
                   style={message.error ? { borderColor: 'var(--status-critical)', color: 'var(--status-critical)' } : undefined}
                 >
-                  {message.text}
+                  {structured ? <AiAnswer data={message} /> : message.text}
                 </div>
                 <div className="chat-msg__meta">
                   <span>{formatDateTime(message.timestamp)}</span>
@@ -243,7 +251,7 @@ export function AssistantPage() {
                     </span>
                   )}
                 </div>
-                {(message.sentiment || (message.keywords && message.keywords.length > 0)) && (
+                {!structured && (message.sentiment || (message.keywords && message.keywords.length > 0)) && (
                   <div
                     style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '2px 4px 0' }}
                     title="Catalyst Zia analysis of your query"
@@ -269,7 +277,8 @@ export function AssistantPage() {
                   </div>
                 )}
               </div>
-            ))
+              );
+            })
           )}
 
           {sending && (

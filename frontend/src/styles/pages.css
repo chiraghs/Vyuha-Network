@@ -952,3 +952,161 @@
 .spin-slow {
   animation: spin 2s linear infinite;
 }
+
+/* ------------------------------ AI answer --------------------------------- */
+.ai-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: fade-in var(--dur-med) var(--ease-out);
+}
+
+.ai-answer__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-answer__mark {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex: none;
+}
+
+.ai-answer__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.ai-answer__conf {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
+
+.ai-answer__conf-bar {
+  width: 54px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--bg-inset);
+  overflow: hidden;
+}
+
+.ai-answer__conf-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width var(--dur-med) var(--ease-out);
+}
+
+.ai-answer__summary {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-1);
+}
+
+.ai-answer__section {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--bg-page);
+}
+
+.ai-answer__section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.ai-answer__section:nth-of-type(1) .ai-answer__section-title {
+  color: var(--accent);
+}
+
+.ai-answer__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-answer__item {
+  display: flex;
+  gap: 9px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+  padding: 3px 4px;
+  border-radius: 6px;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.ai-answer__item:hover {
+  background: var(--bg-hover);
+}
+
+.ai-answer__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--series-2);
+  margin-top: 6px;
+  flex: none;
+}
+
+.ai-answer__item-icon {
+  color: var(--status-warning);
+  flex: none;
+  margin-top: 2px;
+}
+
+.ai-answer__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ---------------------- Link-analysis canvas grid ------------------------- */
+/* Faint dotted grid behind the network graph to give it a canvas feel. The
+   dots sit on a low-opacity ::before layer behind the (transparent) canvas. */
+.network-stage {
+  background-color: var(--bg-page);
+}
+
+.network-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, var(--text-3) 1.1px, transparent 1.1px);
+  background-size: 22px 22px;
+  background-position: center;
+  opacity: 0.16;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.network-canvas {
+  z-index: 1;
+}

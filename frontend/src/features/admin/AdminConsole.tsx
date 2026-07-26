@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   Check,
   Cpu,
+  Download,
   Gauge,
   KeyRound,
   Lock,
@@ -11,6 +12,7 @@ import {
   ScrollText,
   Settings2,
   Terminal,
+  Upload,
   User as UserIcon,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -399,6 +401,8 @@ function EnvPanel() {
   const [saved, setSaved] = useState<Record<string, string>>({});
   const [custKey, setCustKey] = useState('');
   const [custVal, setCustVal] = useState('');
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const importRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -407,6 +411,29 @@ function EnvPanel() {
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => load(), [load]);
+
+  const exportEnv = async () => {
+    const text = await AdminAPI.exportConfig();
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'vyuha.env';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const importEnv = async (file: File) => {
+    const content = await file.text();
+    const res = await AdminAPI.importConfig(content);
+    setImportMsg(
+      `Imported ${res.count} variable${res.count === 1 ? '' : 's'}` +
+        (res.needs_restart.length ? ` · restart needed for ${res.needs_restart.join(', ')}` : ''),
+    );
+    setTimeout(() => setImportMsg(null), 6000);
+    load();
+  };
 
   const save = async (key: string, value: string) => {
     const res = await AdminAPI.setConfig(key, value);
@@ -433,10 +460,36 @@ function EnvPanel() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button className="btn btn--secondary btn--sm" onClick={() => void exportEnv()}>
+          <Download size={13} /> Export .env
+        </button>
+        <input
+          ref={importRef}
+          type="file"
+          accept=".env,text/plain"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void importEnv(f);
+            e.target.value = '';
+          }}
+        />
+        <button className="btn btn--secondary btn--sm" onClick={() => importRef.current?.click()}>
+          <Upload size={13} /> Import .env
+        </button>
+        {importMsg && (
+          <span style={{ fontSize: 12, color: 'var(--status-good)', display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+            <Check size={12} /> {importMsg}
+          </span>
+        )}
+      </div>
+
       <div className="alert-banner alert-banner--info">
         Runtime configuration for <b>this instance</b>. Most keys (AI, OCR, mock toggle) take effect on
         the next request; <code>DATABASE_URL</code> needs a restart. Values reset on redeploy — for
-        permanent config use the Catalyst console.
+        permanent config use the Catalyst console. <b>Export</b> saves the current values to a file;
+        <b> Import</b> applies a saved <code>.env</code>.
       </div>
 
       <div className="card" style={{ padding: 0 }}>

@@ -199,6 +199,20 @@ export interface ChatReply {
   sentiment?: string | null;
   sentiment_score?: number | null;
   keywords?: string[] | null;
+  summary?: string | null;
+  detected_patterns?: string[] | null;
+  recommended_actions?: string[] | null;
+  confidence?: number | null;
+}
+
+/** Structured AI answer for styled rendering (chat + risk panel). */
+export interface AiAnswerData {
+  summary?: string | null;
+  detected_patterns?: string[] | null;
+  recommended_actions?: string[] | null;
+  confidence?: number | null;
+  sentiment?: string | null;
+  keywords?: string[] | null;
 }
 
 export interface ChatHistoryEntry {
@@ -218,6 +232,10 @@ export interface ChatMessage {
   hash?: string;
   sentiment?: string | null;
   keywords?: string[] | null;
+  summary?: string | null;
+  detected_patterns?: string[] | null;
+  recommended_actions?: string[] | null;
+  confidence?: number | null;
   pending?: boolean;
   error?: boolean;
 }

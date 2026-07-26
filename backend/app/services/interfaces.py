@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 
 class BaseAIService(ABC):
     @abstractmethod
-    def analyze_crime_pattern(self, query_text: str, historical_records: list) -> dict:
-        """Analyze crime patterns across unstructured case logs."""
+    def analyze_crime_pattern(self, query_text: str, historical_records: list, language: str = "en") -> dict:
+        """Analyze crime patterns across unstructured case logs. `language`
+        ('en'/'kn') is the language the response strings should be written in."""
         pass
 
     @abstractmethod
